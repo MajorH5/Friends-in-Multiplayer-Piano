@@ -847,6 +847,7 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 // -- //
 // READ DATASTORE DATA
 function readMessage(playerid) {
+	if(playerid==='-'){return}
 	let request = indexedDB.open(playerid)
 	request.onsuccess = e => {
 		db = e.target.result
