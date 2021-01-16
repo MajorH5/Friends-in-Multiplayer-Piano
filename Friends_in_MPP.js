@@ -688,7 +688,6 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 	let f
 	let msngerWindow
 	if (id === ownid) { f = window.split('_')[1] } else { f = id }
-	console.log(msg, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
 
 	if (msgid===undefined){
 		if(messageIdIndex[`${f}_New`]!==true){
@@ -712,7 +711,6 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			color: color
 		}
 	}
-	console.log(message.message, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
 	// EXPERIMENTAL
 	if (id === ownid) {
 		msngerWindow = document.getElementById(window)
@@ -733,10 +731,7 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			db = e.target.result
 			const tx = db.transaction(`${f}_Messages`, "readwrite")
 			const work = tx.objectStore(`${f}_Messages`)
-			console.log(message.message, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
 			work.add(message)
-			console.log(message.message, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
-			console.log('Saved to Data')
 		}
 		request.onerror = e => {
 			console.error(e.target.error)
@@ -882,8 +877,6 @@ function readMessage(playerid) {
 	request.onupgradeneeded = e => {
 		db = e.target.result
 		db.createObjectStore(`${playerid}_Messages`, { keyPath: 'msgid', autoIncrement: true })
-		console.log('New Database Created.')
-		console.warn('Database created when looking for messages...')
 	}
 
 	request.onerror = e => {
@@ -909,14 +902,11 @@ function retrieveMessageNumber(playerid) {
 		requestCursor.onsuccess = e => {
 			const cursor = e.target.result
 			if (cursor) {
-				console.log(cursor.value.msgid)
-				console.log(messageIdIndex[`${playerid}_Index`])
 				numbers.push(Number(cursor.value.msgid))
 				cursor.continue()
 			} else {
 				messageIdIndex[`${playerid}_Index`] = Math.max(...numbers)
 				if (messageIdIndex[`${playerid}_Index`]===-Infinity) { messageIdIndex[`${playerid}_Index`] = 0, messageIdIndex[`${playerid}_New`] = true }
-				console.log('Final: ' + messageIndex, 'Final from index: ' + messageIdIndex[`${playerid}_Index`])
 			}
 		}
 	}
@@ -925,8 +915,6 @@ function retrieveMessageNumber(playerid) {
 		db.createObjectStore(`${playerid}_Messages`, { keyPath: 'msgid', autoIncrement: true })
 		messageIdIndex[`${playerid}_New`] = true
 		messageIdIndex[`${playerid}_Created`] = true
-		console.log('New Database Created.')
-		console.warn('Database created when getting message index...')
 	}
 
 	request.onerror = e => {
