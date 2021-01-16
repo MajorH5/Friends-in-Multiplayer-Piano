@@ -210,7 +210,7 @@ Go back to TamperMonkey and paste the code and press 'CTRL + S'
 
 
 # UPDATE LOG:
-*1/14/2021 (v1.2)*
+*1/12/2021 (v1.2)*
 
 **UPDATES:**
 
@@ -228,6 +228,26 @@ Go back to TamperMonkey and paste the code and press 'CTRL + S'
 - Added ability to manually verify ID:white_check_mark:
 - Verification system now works.(NOTE: **THE SETTINGS MAY SAY YOU ARE VERIFIED BUT YOU'RE  PROBABLY NOT.** This is because that data is stored locally on your PC's and i cant edit that. So when you use this new build make sure to go into settings and click 'verified' even if it says you are verified just to make sure.) :white_check_mark:
 
+*1/15/2021 (v1.3)*
+
+**UPDATES:**
+
+- This is just a short update. Messages are now stored in computer so, messages are now saved.
+- Fixed Enable and Disable friend button stuck showing 'Try Again'
+- Fixed blank verification button for some users and button now updates to proper status when verified
+- Get new script form:
+
+*1/16/2021 (v1.3.1)*
+
+**UPDATES:**
+
+- Messages to offline players are now stored server sided and sent when the player comes online.
+- Fixed bug where if you received a message and the window was not open, the message was lost.
+- Fixed messages from someone who is not friend being deleted
+- When receiving message from someone who isn't friend, database is now created automatically so message is not lost.
+- Added warning message when removing friend
+- Can now send messages using the 'Enter' key
+- Added a clear data button which will delete all site data that the script uses. This clears all friend data, message data, button status, etc (NOTE: As of right now, it does not clear out messages. Still working that out.)
 
 
 # Things to add:
