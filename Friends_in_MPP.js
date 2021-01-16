@@ -134,6 +134,7 @@ function addNewFriend(playerid, p) {
 	friends.push(playerid)
 	savname.push(playerid)
 	savname.push(p.name)
+	retrieveMessageNumber(playerid)
 	document.cookie = (`*${playerid}=${playerid}; expires=${keepCookie}`)
 	document.cookie = (`!${playerid}=${p.nameDiv.style.backgroundColor}; expires=${keepCookie}`)
 	document.cookie = (`#${playerid}=${p.name}; expires=${keepCookie}`)
@@ -362,7 +363,6 @@ if (newsetup === false) {
 // -- //
 let found = false
 // RESTORES BUTTON STATUS FOR ALLOW FRIEND JOIN
-if (newsetup === false) {
 	for (let i = 0; i < cookies.length; i++) {
 		if (cookies[i][0].includes('^')) {
 			if (cookies[i][1] === 'enabled') {
@@ -375,11 +375,11 @@ if (newsetup === false) {
 			break
 		}
 	}
-	if (!found) {
+	if (found===false) {
 		document.cookie = (`^allowFriendJoin=enabled; expires=${keepCookie}`)
 		allowRoom = true
+		console.log('here')
 	}
-}
 // -- //
 
 // -- //
@@ -458,14 +458,21 @@ function buttonClicked(object, num) {
 			let z = document.createElement('div')
 			z.id = 'manualVerify-btn'
 			z.className = 'ugly-button'
+			let found
 			for (let i = 0; i < cookies.length; i++) {
 				if (cookies[i][0].includes('&verificationStatus')) {
 					if (cookies[i][1] === 'true') {
+						found=true
 						z.innerText = 'Verified', z.style.color = 'lime'
 					} else {
+						found=true
 						z.innerText = 'Not verified', z.style.color = 'red'
 					}
 				}
+			}
+			if (!found){
+				document.cookie = `&verificationStatus=false; expires=${keepCookie}`
+				z.innerText = 'Not verified', z.style.color = 'red'
 			}
 			s.appendChild(z)
 			createDiv('Clicking this button will automatically verify your ID if you are not veriifed.', s.id, '15px', 'VERIFY YOUR ID')
@@ -677,11 +684,18 @@ let msgs = [];
 // CREATE MESSAGE POP UPS ON SCREEN
 function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 	// STORAGE TO INDEXDB
-	console.log(msg, `And the Message ID is: ${msgid}`)
+
 	let f
+	let msngerWindow
 	if (id === ownid) { f = window.split('_')[1] } else { f = id }
-	messageIdIndex[`${f}_Index`] = messageIdIndex[`${f}_Index`] + 1
-	if (!msgid){
+	console.log(msg, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
+
+	if (msgid===undefined){
+		if(messageIdIndex[`${f}_New`]!==true){
+			messageIdIndex[`${f}_Index`] = messageIdIndex[`${f}_Index`] + 1
+		}else{
+			messageIdIndex[`${f}_New`]=undefined
+		}
 		message = {
 			msgid: messageIdIndex[`${f}_Index`],
 			ID: f,
@@ -698,8 +712,16 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			color: color
 		}
 	}
-	console.log(message.message, `And the Message ID is: ${msgid}`)
+	console.log(message.message, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
 	// EXPERIMENTAL
+	if (id === ownid) {
+		msngerWindow = document.getElementById(window)
+	} else {
+		msngerWindow = document.getElementById(`msgWin_${id}`)
+	}
+	if (msngerWindow === null) {
+		i=true
+	}
 	if (i){
 		let request = indexedDB.open(f)
 		request.onupgradeneeded = e => {
@@ -711,9 +733,9 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			db = e.target.result
 			const tx = db.transaction(`${f}_Messages`, "readwrite")
 			const work = tx.objectStore(`${f}_Messages`)
-			console.log(message.message, `And the Message ID is: ${msgid}`)
+			console.log(message.message, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
 			work.add(message)
-			console.log(message.message, `And the Message ID is: ${msgid}`)
+			console.log(message.message, `And the Message ID is: ${messageIdIndex[`${f}_Index`]}`)
 			console.log('Saved to Data')
 		}
 		request.onerror = e => {
@@ -723,12 +745,6 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 	// EXPERIMENTAL
 
 	//END
-	let msngerWindow
-	if (id === ownid) {
-		msngerWindow = document.getElementById(window)
-	} else {
-		msngerWindow = document.getElementById(`msgWin_${id}`)
-	}
 	if (msngerWindow === null || msngerWindow.style.visibility === 'hidden') {
 		if (document.getElementById(`new_msg_${id}`) === null) {
 			let i = document.getElementById(id)
@@ -881,7 +897,9 @@ function readMessage(playerid) {
 function retrieveMessageNumber(playerid) {
 	let request = indexedDB.open(playerid)
 	let messageIndex = 0
+	let numbers = []
 	messageIdIndex[`${playerid}_Index`] = 0
+	messageIdIndex[`${playerid}_Created`] = true
 	request.onsuccess = e => {
 		db = e.target.result
 		if (!db.objectStoreNames.contains(`${playerid}_Messages`)) { return }
@@ -891,12 +909,13 @@ function retrieveMessageNumber(playerid) {
 		requestCursor.onsuccess = e => {
 			const cursor = e.target.result
 			if (cursor) {
-				console.log('From the function: ' + messageIndex, 'Also from the IDIndex: ' + messageIdIndex[`${playerid}_Index`])
-				if (Number(cursor.value.msgid) === messageIdIndex[`${playerid}_Index`]) { messageIdIndex[`${playerid}_Index`] = Number(cursor.value.msgid) + 1 }
+				console.log(cursor.value.msgid)
+				console.log(messageIdIndex[`${playerid}_Index`])
+				numbers.push(Number(cursor.value.msgid))
 				cursor.continue()
 			} else {
-				if (!messageIdIndex[`${playerid}_Index`]) { messageIdIndex[`${playerid}_Index`] = 0 }
-				messageIdIndex[`${playerid}_Index`]++
+				messageIdIndex[`${playerid}_Index`] = Math.max(...numbers)
+				if (messageIdIndex[`${playerid}_Index`]===-Infinity) { messageIdIndex[`${playerid}_Index`] = 0, messageIdIndex[`${playerid}_New`] = true }
 				console.log('Final: ' + messageIndex, 'Final from index: ' + messageIdIndex[`${playerid}_Index`])
 			}
 		}
@@ -904,6 +923,8 @@ function retrieveMessageNumber(playerid) {
 	request.onupgradeneeded = e => {
 		db = e.target.result
 		db.createObjectStore(`${playerid}_Messages`, { keyPath: 'msgid', autoIncrement: true })
+		messageIdIndex[`${playerid}_New`] = true
+		messageIdIndex[`${playerid}_Created`] = true
 		console.log('New Database Created.')
 		console.warn('Database created when getting message index...')
 	}
@@ -1186,6 +1207,8 @@ function addListener() {
 							authenticationStatus = true
 							document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
 							verificationConfirmed()
+							let z = document.getElementById('manualVerify-btn')
+							if(z){z.innerText='Verified',z.style.color='lime'}
 							client.stop();
 						}
 						if (msg.a.toString().toLowerCase().startsWith('could not authenticate.')) {
@@ -1200,11 +1223,13 @@ function addListener() {
 			}, 1000);
 		}
 		if (e.data.startsWith('IDENTITY VERIFIED')) {
-			client.stop();
 			authenticationStatus = true
 			alreadyVerified()
 			console.log('Identity already verified')
 			document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
+			let z = document.getElementById('manualVerify-btn')
+			if(z){z.innerText='Verified',z.style.color='lime'}
+			if(client!==undefined){client.stop()};
 		}
 		if (e.data === '^ID SAVED') {
 			ws.send(`^uDATAname-${ownName}`)
@@ -1247,6 +1272,7 @@ function addListener() {
 
 			var msg = j[0][1]
 			var tid = j[1][1]
+			console.log(tid)
 			var verify = j[2][1]
 			var tcolor = j[3][1]
 			if (j[4]) {
@@ -1255,7 +1281,8 @@ function addListener() {
 				var tname = 'Name Unknown (Player needs to update to latest version)'
 			}
 
-			createMessageOnScreen(tid, msg, verify, tcolor, tname, (messageIdIndex[`${tid}_Index`]), true)
+			createMessageOnScreen(tid, msg, verify, tcolor, tname, undefined, true)
+
 		}
 		if (e.data.startsWith('PLAYER NOT IN DATABASE. ASK THEM TO USE SCRIPT TO MESSAGE.')) {
 			let data = e.data.split(',')
@@ -1453,8 +1480,11 @@ function addClick(object, playerid, p) {
 								document.getElementById(`new_msg_${playerid}`).remove()
 							}
 							// EXPERIMENTAL
-							retrieveMessageNumber(playerid)
+							if(!messageIdIndex[`${playerid}_Created`]){
+								retrieveMessageNumber(playerid)
+							}
 							readMessage(playerid)
+							
 							// EXPERIMENTAL
 
 
@@ -1499,11 +1529,6 @@ function addClick(object, playerid, p) {
 							windowName.innerText = tempname
 
 
-							for (let i = 0; i < msgs.length; i++) {
-								if (msgs[i].includes(`<SAVEDMESSAGE_${playerid}>`)) {
-									createMessageOnScreen(playerid, msgs[i + 1], msgs[i + 2], msgs[i + 3], undefined, true)
-								}
-							}
 							document.getElementById(`msgWin_${playerid}`).style.color = tempcolor;
 
 							let xbutton = document.createElement("a")
@@ -1563,7 +1588,7 @@ function addClick(object, playerid, p) {
 							sendButton.onclick = () => {
 								console.log('Send')
 								// EXPERIMENTAL
-								createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, messageIdIndex[`${playerid}_Index`], true)
+								createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
 								sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
 								// EXPERIMENTAL
 								statusM = false
@@ -1974,6 +1999,8 @@ let test
 			})
 		}
 	}
-
+	for(let i=0;i<friends.length; i++){
+		retrieveMessageNumber(friends[i])
+	}
 })();
 // -- //
