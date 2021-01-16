@@ -21,6 +21,8 @@ let statusM = true
 
 // -- //
 // DECLORATIONS //
+let currentInput
+let mouseInInput
 let newsetup;
 let cookies;
 let join
@@ -660,6 +662,12 @@ function messageStatus(status, msgid) {
 		b.childNodes[1].innerHTML = 'Status: Not Sent';
 		b.childNodes[1].style = 'text-align: right;font-size: 10px;color: red;';
 	}
+	if (status === 'Saved') {
+		b.className = `Saved_${msgid}`;
+		stopStatusDots = true
+		b.childNodes[1].innerHTML = 'Status: Saved';
+		b.childNodes[1].style = 'text-align: right;font-size: 10px;color: orange;';
+	}
 	if (status === 'Sending') {
 		s = document.createElement('div')
 		b.appendChild(s)
@@ -1284,6 +1292,10 @@ function addListener() {
 			let data = e.data.split(' ')
 			messageStatus('Not Sent', data[5])
 		}
+		if (e.data.startsWith('SAVED')) {
+			let data = e.data.split(' ')
+			messageStatus('Saved', data[1])
+		}
 		if (e.data.startsWith('<MSA>')) {
 			let announcement = e.data.split(':')
 			announcement = announcement[1]
@@ -1549,8 +1561,21 @@ function addClick(object, playerid, p) {
 							inputBox.name = 'name';
 							inputBox.placeholder = 'Send a message';
 							inputBox.maxlength = '255';
-							inputBox.className = 'translate';
+							inputBox.className = 'msgInputBox';
 							inputBox.id = `msgInput_${playerid}`
+
+							inputBox.addEventListener('focus', (event) => {
+								mouseInInput=true
+								currentInput=inputBox.id
+								console.log(mouseInInput)
+							  });
+							  inputBox.addEventListener('focusout', (event) => {
+								mouseInInput=false
+								setTimeout(function(){
+								currentInput=''
+								})
+								console.log(mouseInInput)
+							  });
 
 							inputBox.style = `position: fixed;top: ${inputTop}px;left: ${inputLeft}px;width: 258px;`;
 							let msgopen = false
@@ -1987,8 +2012,15 @@ let test
 			})
 		}
 	}
-	for(let i=0;i<friends.length; i++){
-		retrieveMessageNumber(friends[i])
-	}
+	$(document).on("keydown", function(evt) {
+		if(evt.keyCode == 13 && currentInput.startsWith('msgInput')) {
+			let i = document.getElementById(currentInput)
+			console.log(i.value)
+			evt.preventDefault();
+			evt.stopPropagation();
+
+		}
+	});
+
 })();
 // -- //
