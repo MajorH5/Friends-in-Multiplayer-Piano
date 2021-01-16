@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Multiplayer Piano ADD-ON
 // @namespace    http://tampermonkey.net/
-// @version      1.3
+// @version      1.3.1
 // @description  Adds new features to MPP including add friends, do not show again, Direct Messaging etc.
 // @author       MajorH
 // @match        https://www.multiplayerpiano.com/*
@@ -365,23 +365,23 @@ if (newsetup === false) {
 // -- //
 let found = false
 // RESTORES BUTTON STATUS FOR ALLOW FRIEND JOIN
-	for (let i = 0; i < cookies.length; i++) {
-		if (cookies[i][0].includes('^')) {
-			if (cookies[i][1] === 'enabled') {
-				allowRoom = true
-				found = true
-			} else if (cookies[i][1] === 'disabled') {
-				allowRoom = false
-				found = true
-			}
-			break
+for (let i = 0; i < cookies.length; i++) {
+	if (cookies[i][0].includes('^')) {
+		if (cookies[i][1] === 'enabled') {
+			allowRoom = true
+			found = true
+		} else if (cookies[i][1] === 'disabled') {
+			allowRoom = false
+			found = true
 		}
+		break
 	}
-	if (found===false) {
-		document.cookie = (`^allowFriendJoin=enabled; expires=${keepCookie}`)
-		allowRoom = true
-		console.log('here')
-	}
+}
+if (found === false) {
+	document.cookie = (`^allowFriendJoin=enabled; expires=${keepCookie}`)
+	allowRoom = true
+	console.log('here')
+}
 // -- //
 
 // -- //
@@ -455,7 +455,7 @@ function buttonClicked(object, num) {
 			let u = document.createElement('div')
 			u.id = 'versionNumber'
 			u.style = 'font-size: 16px;color: grey;top: 393px;position: absolute;'
-			u.innerText = '>Script By MajorH. v1.3'
+			u.innerText = '>Script By MajorH. v1.3.1'
 			s.appendChild(u)
 			let z = document.createElement('div')
 			z.id = 'manualVerify-btn'
@@ -464,15 +464,15 @@ function buttonClicked(object, num) {
 			for (let i = 0; i < cookies.length; i++) {
 				if (cookies[i][0].includes('&verificationStatus')) {
 					if (cookies[i][1] === 'true') {
-						found=true
+						found = true
 						z.innerText = 'Verified', z.style.color = 'lime'
 					} else {
-						found=true
+						found = true
 						z.innerText = 'Not verified', z.style.color = 'red'
 					}
 				}
 			}
-			if (!found){
+			if (!found) {
 				document.cookie = `&verificationStatus=false; expires=${keepCookie}`
 				z.innerText = 'Not verified', z.style.color = 'red'
 			}
@@ -521,8 +521,118 @@ function buttonClicked(object, num) {
 					document.getElementById('verifyUserPrompt-window').remove()
 				};
 			})
+			let e = document.createElement('div')
+			e.id = 'clearSiteData-btn'
+			e.className = 'ugly-button'
+			e.innerText = 'CLEAR DATA'
+			e.style.color = 'red'
+			s.appendChild(e)
+			createDiv('This button will CLEAR ALL SITE DATA. This inclues any friend data, message data, etc.', s.id, '15px', 'CLEAR SITE DATA')
+			e.addEventListener('click', function () {
+				if (document.getElementById('delete-Site-DataWarning') === null) {
+					s.style.visibility = 'hidden'
+					console.log('clear data')
+					let j = document.createElement('div')
+					j.className = 'notification classic';
+					j.id = 'delete-Site-DataWarning'
+					j.style = `height: 292px;top: ${settingsTop}px;left: ${(settingsLeft) - 240}px;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);`
+					document.getElementsByClassName('relative')[0].appendChild(j)
+					let x = document.createElement('div')
+					x.innerHTML = 'Ⓧ'
+					x.className = 'x'
+					x.style.top = '17px'
+					j.appendChild(x)
+					let k = document.createElement('div')
+					k.className = 'title'
+					k.innerText = 'WARNING THIS WILL DELETE ALL STORED DATA FOR MULTIPLAYER PIANO:'
+					j.appendChild(k)
+					let p = document.createElement('div')
+					p.className = 'text'
+					p.innerText = 'Would you like to proceed?'
+					j.appendChild(p)
+					x.addEventListener('click', () => {
+						j.remove()
+					})
+					let n = document.createElement('div')
+					n.id = 'clearSiteDataFINAL-btn'
+					n.className = 'ugly-button'
+					n.innerText = 'CLEAR DATA'
+					n.style = 'top: 246px;left: 182px;position: absolute;'
+					j.appendChild(n)
+					let clickedOnce = false
+					n.addEventListener('click', () => {
+						if (!clickedOnce) {
+							for (let i = 0; i < friends.length; i++) {
+								document.cookie = (`!${friends[i]}=''; expires=${deleteCookie}`)
+								document.cookie = (`*${friends[i]}=''; expires=${deleteCookie}`)
+								document.cookie = (`#${friends[i]}=''; expires=${deleteCookie}`)
+								removeFromPanel(friends[i])
+								let id = friends[i]
+								let f = MPP.client.ppl
+								for (const property in f) {
+									let j = Object.getOwnPropertyDescriptor(f[property], '_id')
+									if (j) {
+										if (j.value === id) {
+											let p = f[property]
+											if (p.scriptUser === undefined) {
+												const cursornorm = p.cursorDiv.childNodes;
+												cursornorm[0].innerHTML = `${p.name}`
+												p.nameDiv.innerHTML = `${p.name}`
+												objectf.innerHTML = 'Add Friend'
+												cursornorm[0].setAttribute("style", "color: white;")
+												let nameColor = p.nameDiv.style.backgroundColor.toString()
+												cursornorm[0].style.backgroundColor = nameColor
+												p.nameDiv.style.color = 'white'
+											}
+											else {
+												const cursornorm = p.cursorDiv.childNodes;
+												cursornorm[0].innerHTML = `${p.name} (Script User)`
+												p.nameDiv.innerHTML = `${p.name} (Script User)`
+												objectf.innerHTML = 'Add Friend'
+												cursornorm[0].setAttribute("style", "color: orange;")
+												let nameColor = p.nameDiv.style.backgroundColor.toString()
+												cursornorm[0].style.backgroundColor = nameColor
+												p.nameDiv.style.color = 'orange'
+											}
+										}
+									}
+								}
+								setTimeout(function () {
+									var req = indexedDB.deleteDatabase(friends[i]);
+									req.onsuccess = function (e) {
+										console.log("Deleted database successfully");
+										console.log(e)
+									};
+									req.onerror = function (e) {
+										console.log("Couldn't delete database");
+										console.log(e)
+									};
+									req.onblocked = function (e) {
+										console.log("Couldn't delete database due to the operation being blocked");
+										console.log(e)
+									};
+								}, 10000)
+							}
+							document.cookie = (`^allowFriendJoin=true; expires=${keepCookie}`)
+							allowRoom = true
+							friends = []
+
+							x.style = ''
+							p.innerText = 'Site Data Cleared!'
+							p.style.color = 'lime'
+							k.innerText = 'Data Cleared Successfully.'
+							clickedOnce = true
+							n.innerText = 'Close'
+						} else {
+							j.remove()
+						}
+					})
+				}
+			})
 		} else {
-			if (s.style.visibility === 'hidden' && (document.getElementById('verifyUserPrompt-window') === null)) {
+			let a = document.getElementById('allowFriendJoin-btn')
+			if (s.style.visibility === 'hidden' && (document.getElementById('verifyUserPrompt-window') === null && document.getElementById('delete-Site-DataWarning') === null)) {
+				if (allowRoom === true) { a.innerText = 'Enabled', a.style.color = 'lime' } else if (allowRoom === false) { a.innerText = 'Disabled', a.style.color = 'red' } else { a.innerText = '-', a.style.color = 'black' }
 				s.style.visibility = 'visible';
 			} else {
 				s.style.visibility = 'hidden';
@@ -691,17 +801,17 @@ function messageStatus(status, msgid) {
 let msgs = [];
 // CREATE MESSAGE POP UPS ON SCREEN
 function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
+	console.log(window, msgid)
 	// STORAGE TO INDEXDB
-
 	let f
 	let msngerWindow
 	if (id === ownid) { f = window.split('_')[1] } else { f = id }
-
-	if (msgid===undefined){
-		if(messageIdIndex[`${f}_New`]!==true){
+	if (!friends.includes(f)) { retrieveMessageNumber(f) }
+	if (msgid === undefined) {
+		if (messageIdIndex[`${f}_New`] !== true) {
 			messageIdIndex[`${f}_Index`] = messageIdIndex[`${f}_Index`] + 1
-		}else{
-			messageIdIndex[`${f}_New`]=undefined
+		} else {
+			messageIdIndex[`${f}_New`] = undefined
 		}
 		message = {
 			msgid: messageIdIndex[`${f}_Index`],
@@ -710,7 +820,7 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			verify: verify,
 			color: color
 		}
-	}else{
+	} else {
 		message = {
 			msgid: msgid,
 			ID: f,
@@ -719,6 +829,7 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			color: color
 		}
 	}
+	console.log(message.message)
 	// EXPERIMENTAL
 	if (id === ownid) {
 		msngerWindow = document.getElementById(window)
@@ -726,9 +837,9 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 		msngerWindow = document.getElementById(`msgWin_${id}`)
 	}
 	if (msngerWindow === null) {
-		i=true
+		i = true
 	}
-	if (i){
+	if (i) {
 		let request = indexedDB.open(f)
 		request.onupgradeneeded = e => {
 			db = e.target.result
@@ -759,7 +870,9 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 				j.style = 'text-align: right;font-size: 10px;color: white;'
 			} else {
 				console.log("Message from someone who isn't friend")
+				if (document.getElementById('Unknown_message')) { document.getElementById('Unknown_message').remove() }
 				let j = document.createElement('div')
+				j.id = 'Unknown_message'
 				j.className = 'notification classic';
 				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
 				document.getElementsByClassName('relative')[0].appendChild(j)
@@ -805,6 +918,26 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 					document.cookie = (`#${id}=${window}; expires=${keepCookie}`)
 					addClick(friend, id)
 					sendMessage('update player')
+					let f = MPP.client.ppl
+					for (const property in f) {
+						let j = Object.getOwnPropertyDescriptor(f[property], '_id')
+						if (j) {
+							if (j.value === id) {
+								let p = f[property]
+								if (p.scriptUser === undefined) {
+									const cursor = p.cursorDiv.childNodes;
+									p.cursorDiv.thatid = playerid
+									cursor[0].innerHTML = `${p.name} (Friend)`
+									objectf.innerHTML = 'Remove Friend'
+									cursor[0].setAttribute("style", "color: lime;")
+									let nameColor = p.nameDiv.style.backgroundColor.toString()
+									cursor[0].style.backgroundColor = nameColor
+									p.nameDiv.innerHTML = `${p.name} (Friend)`
+									p.nameDiv.style.color = 'lime'
+								}
+							}
+						}
+					}
 					j.remove()
 				})
 				let c = document.createElement('div')
@@ -866,7 +999,7 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 // -- //
 // READ DATASTORE DATA
 function readMessage(playerid) {
-	if(playerid==='-'){return}
+	if (playerid === '-') { return }
 	let request = indexedDB.open(playerid)
 	request.onsuccess = e => {
 		db = e.target.result
@@ -914,7 +1047,7 @@ function retrieveMessageNumber(playerid) {
 				cursor.continue()
 			} else {
 				messageIdIndex[`${playerid}_Index`] = Math.max(...numbers)
-				if (messageIdIndex[`${playerid}_Index`]===-Infinity) { messageIdIndex[`${playerid}_Index`] = 0, messageIdIndex[`${playerid}_New`] = true }
+				if (messageIdIndex[`${playerid}_Index`] === -Infinity) { messageIdIndex[`${playerid}_Index`] = 0, messageIdIndex[`${playerid}_New`] = true }
 			}
 		}
 	}
@@ -1204,7 +1337,7 @@ function addListener() {
 							document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
 							verificationConfirmed()
 							let z = document.getElementById('manualVerify-btn')
-							if(z){z.innerText='Verified',z.style.color='lime'}
+							if (z) { z.innerText = 'Verified', z.style.color = 'lime' }
 							client.stop();
 						}
 						if (msg.a.toString().toLowerCase().startsWith('could not authenticate.')) {
@@ -1224,8 +1357,8 @@ function addListener() {
 			console.log('Identity already verified')
 			document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
 			let z = document.getElementById('manualVerify-btn')
-			if(z){z.innerText='Verified',z.style.color='lime'}
-			if(client!==undefined){client.stop()};
+			if (z) { z.innerText = 'Verified', z.style.color = 'lime' }
+			if (client !== undefined) { client.stop() };
 		}
 		if (e.data === '^ID SAVED') {
 			ws.send(`^uDATAname-${ownName}`)
@@ -1480,11 +1613,11 @@ function addClick(object, playerid, p) {
 								document.getElementById(`new_msg_${playerid}`).remove()
 							}
 							// EXPERIMENTAL
-							if(!messageIdIndex[`${playerid}_Created`]){
+							if (!messageIdIndex[`${playerid}_Created`]) {
 								retrieveMessageNumber(playerid)
 							}
 							readMessage(playerid)
-							
+
 							// EXPERIMENTAL
 
 
@@ -1565,17 +1698,17 @@ function addClick(object, playerid, p) {
 							inputBox.id = `msgInput_${playerid}`
 
 							inputBox.addEventListener('focus', (event) => {
-								mouseInInput=true
-								currentInput=inputBox.id
+								mouseInInput = true
+								currentInput = inputBox.id
 								console.log(mouseInInput)
-							  });
-							  inputBox.addEventListener('focusout', (event) => {
-								mouseInInput=false
-								setTimeout(function(){
-								currentInput=''
+							});
+							inputBox.addEventListener('focusout', (event) => {
+								mouseInInput = false
+								setTimeout(function () {
+									currentInput = ''
 								})
 								console.log(mouseInInput)
-							  });
+							});
 
 							inputBox.style = `position: fixed;top: ${inputTop}px;left: ${inputLeft}px;width: 258px;`;
 							let msgopen = false
@@ -1591,6 +1724,21 @@ function addClick(object, playerid, p) {
 									document.getElementById('piano').childNodes[0].click()
 								}
 							}
+
+							$(document).on("keydown", function (evt) {
+								if (evt.keyCode == 13 && currentInput.startsWith('msgInput')) {
+									let i = document.getElementById(currentInput)
+									console.log(i.value)
+									console.log('Send')
+									$("#chat input").get(0).blur();
+									$("#chat").removeClass("chatting");
+									createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
+									sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
+									statusM = false
+									inputBox.value = '';
+								}
+							});
+
 
 							let sendButton = document.createElement("div")
 							document.getElementById(`msgWin_${playerid}`).appendChild(sendButton);
@@ -1624,73 +1772,117 @@ function addClick(object, playerid, p) {
 			button2.innerHTML = 'Remove Friend';
 			document.getElementById(playerid).appendChild(button2);
 			button2.addEventListener('click', () => {
-				removeFromPanel(playerid)
-				deleteFriendWindow(playerid)
-				let bgcolor
-				let name
-				for (let i = 0; i < bgr.length; i++) {
-					if (bgr[i].includes(playerid)) {
-						bgcolor = bgr[i + 1]
-					}
-				}
-				for (let j = 0; j < savname.length; j++) {
-					if (savname[j].includes(playerid)) {
-						name = savname[j + 1]
-					}
-				}
-				document.cookie = (`!${playerid}=${bgcolor}; expires=${deleteCookie}`)
-				document.cookie = (`*${playerid}=${playerid}; expires=${deleteCookie}`)
-				document.cookie = (`#${playerid}=${name}; expires=${deleteCookie}`)
-				for (let i = 0; i < friends.length; i++) {
-					if (friends[i] === playerid) {
-						friends.splice(i, 1)
-					}
-				}
 
-				let i = MPP.client.ppl
-				for (const property in i) {
-					let j = Object.getOwnPropertyDescriptor(i[property], '_id')
-					if (j) {
-						if (j.value === playerid) {
-							let p = i[property]
-							if (p.scriptUser === true) {
-								if (typeof p.cursorDiv === 'object') {
-									const cursornorm = p.cursorDiv.childNodes;
-									cursornorm[0].innerHTML = `${p.name} (Script User)`
-									p.nameDiv.innerHTML = `${p.name} (Script User)`
-									objectf.innerHTML = 'Add Friend'
-									cursornorm[0].setAttribute("style", "color: orange;")
-									let nameColor = p.nameDiv.style.backgroundColor.toString()
-									cursornorm[0].style.backgroundColor = nameColor
-									p.nameDiv.style.color = 'orange'
-								}
-							} else {
-								let playersinroom = document.getElementById('names').children
-								let t
-								for (let g = 0; g < playersinroom.length; g++) {
-									if (playersinroom[g].thatid === playerid) {
-										t = playersinroom[g]
-										t.innerHTML = name
-										t.style.color = 'white'
+				if (document.getElementById('remove-friend')) { document.getElementById('remove-friend').remove() }
+				let j = document.createElement('div')
+				j.id = 'remove-friend'
+				j.className = 'notification classic';
+				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+				document.getElementsByClassName('relative')[0].appendChild(j)
+				let x = document.createElement('div')
+				x.innerHTML = 'Ⓧ'
+				x.className = 'x'
+				j.appendChild(x)
+				let k = document.createElement('div')
+				k.className = 'title'
+				k.innerText = `ARE YOU SURE YOU WANT TO REMOVE USER: ${playerid}`
+				j.appendChild(k)
+				let p = document.createElement('div')
+				p.className = 'text'
+				p.innerText = `Doing this will clear the message history and remove the friend from your friends list. Are you sure?`
+				p.style = 'font-size: 20px;color: black;'
+				j.appendChild(p)
+				x.addEventListener('click', () => {
+					j.remove()
+				})
+				let w = document.createElement('div')
+				w.className = 'ugly-button'
+				w.innerText = 'Remove Friend'
+				w.style = 'top: 245px;left: 185px;position: absolute;'
+				j.appendChild(w)
+				w.addEventListener('click', () => {
+					removeFromPanel(playerid)
+					deleteFriendWindow(playerid)
+					let bgcolor
+					let name
+					for (let i = 0; i < bgr.length; i++) {
+						if (bgr[i].includes(playerid)) {
+							bgcolor = bgr[i + 1]
+						}
+					}
+					for (let j = 0; j < savname.length; j++) {
+						if (savname[j].includes(playerid)) {
+							name = savname[j + 1]
+						}
+					}
+					document.cookie = (`!${playerid}=${bgcolor}; expires=${deleteCookie}`)
+					document.cookie = (`*${playerid}=${playerid}; expires=${deleteCookie}`)
+					document.cookie = (`#${playerid}=${name}; expires=${deleteCookie}`)
+					for (let i = 0; i < friends.length; i++) {
+						if (friends[i] === playerid) {
+							friends.splice(i, 1)
+						}
+					}
+
+					let i = MPP.client.ppl
+					for (const property in i) {
+						let j = Object.getOwnPropertyDescriptor(i[property], '_id')
+						if (j) {
+							if (j.value === playerid) {
+								let p = i[property]
+								if (p.scriptUser === true) {
+									if (typeof p.cursorDiv === 'object') {
+										const cursornorm = p.cursorDiv.childNodes;
+										cursornorm[0].innerHTML = `${p.name} (Script User)`
+										p.nameDiv.innerHTML = `${p.name} (Script User)`
+										objectf.innerHTML = 'Add Friend'
+										cursornorm[0].setAttribute("style", "color: orange;")
+										let nameColor = p.nameDiv.style.backgroundColor.toString()
+										cursornorm[0].style.backgroundColor = nameColor
+										p.nameDiv.style.color = 'orange'
 									}
-								}
-								let cursorsinroom = document.getElementById('cursors').children
-								for (let g = 0; g < cursorsinroom.length; g++) {
-									if (cursorsinroom[g].thatid === playerid) {
-										let p = cursorsinroom[g]
-										p.children[0].innerText = name
-										p.children[0].setAttribute("style", "color: white;")
-										let nameColor = t.style.backgroundColor.toString()
-										p.children[0].style.backgroundColor = nameColor
+								} else {
+									let playersinroom = document.getElementById('names').children
+									let t
+									for (let g = 0; g < playersinroom.length; g++) {
+										if (playersinroom[g].thatid === playerid) {
+											t = playersinroom[g]
+											t.innerHTML = name
+											t.style.color = 'white'
+										}
+									}
+									let cursorsinroom = document.getElementById('cursors').children
+									for (let g = 0; g < cursorsinroom.length; g++) {
+										if (cursorsinroom[g].thatid === playerid) {
+											let p = cursorsinroom[g]
+											p.children[0].innerText = name
+											p.children[0].setAttribute("style", "color: white;")
+											let nameColor = t.style.backgroundColor.toString()
+											p.children[0].style.backgroundColor = nameColor
+										}
 									}
 								}
 							}
 						}
 					}
-				}
-				console.log('Player Removed')
-				sendMessage('update player')
-				sendMessage('script user', playerid)
+					console.log('Player Removed')
+					sendMessage('update player')
+					sendMessage('script user', playerid)
+					j.remove()
+					var req = indexedDB.deleteDatabase(playerid);
+					req.onsuccess = function (e) {
+						console.log("Deleted database successfully");
+						console.log(e.target.error)
+					};
+					req.onerror = function (e) {
+						console.log("Couldn't delete database");
+						console.log(e.target.error)
+					};
+					req.onblocked = function (e) {
+						console.log("Couldn't delete database due to the operation being blocked");
+						console.log(e.target.error)
+					};
+				})
 			}, 24)
 			let button3 = document.createElement("div")
 			button3.className = 'ugly-button';
@@ -2012,15 +2204,8 @@ let test
 			})
 		}
 	}
-	$(document).on("keydown", function(evt) {
-		if(evt.keyCode == 13 && currentInput.startsWith('msgInput')) {
-			let i = document.getElementById(currentInput)
-			console.log(i.value)
-			evt.preventDefault();
-			evt.stopPropagation();
-
-		}
-	});
-
+	for (let i = 0; i < friends.length; i++) {
+		retrieveMessageNumber(friends[i])
+	}
 })();
 // -- //
