@@ -1698,16 +1698,7 @@ function addClick(object, playerid, p) {
 							inputBox.id = `msgInput_${playerid}`
 
 							inputBox.addEventListener('focus', (event) => {
-								mouseInInput = true
 								currentInput = inputBox.id
-								console.log(mouseInInput)
-							});
-							inputBox.addEventListener('focusout', (event) => {
-								mouseInInput = false
-								setTimeout(function () {
-									currentInput = ''
-								})
-								console.log(mouseInInput)
 							});
 
 							inputBox.style = `position: fixed;top: ${inputTop}px;left: ${inputLeft}px;width: 258px;`;
@@ -1719,6 +1710,7 @@ function addClick(object, playerid, p) {
 									document.getElementById('chat').className = 'inputtingText';
 								} else {
 									msgopen = false
+									currentInput = ''
 									document.getElementById('chat').className = 'chat chatting';
 									document.getElementById('chat').className = 'chat';
 									document.getElementById('piano').childNodes[0].click()
@@ -1736,6 +1728,8 @@ function addClick(object, playerid, p) {
 									sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
 									statusM = false
 									inputBox.value = '';
+									inputBox.focus()
+									currentInput = inputBox.id
 								}
 							});
 
