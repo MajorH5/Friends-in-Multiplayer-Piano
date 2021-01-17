@@ -310,7 +310,7 @@ objectf.addEventListener('click', () => {
 		removeFriend(selectedFriend, PT)
 		checkFriendHTML(selectedFriend, PT)
 		sendMessage('update player')
-		if (PT.scriptUser === true || selectedFriend === scriptCreatorId) {
+		if (PT.scriptUser === true && selectedFriend !== scriptCreatorId) {
 			let p = PT
 			if (typeof p.cursorDiv === 'object') {
 				if (!friends.includes(selectedFriend)) {
