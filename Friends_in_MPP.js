@@ -21,6 +21,8 @@ let statusM = true
 
 // -- //
 // DECLORATIONS //
+let cursorClickerScore = '0'
+let inGame = false
 let scriptCreatorId = '60d7080bbfbaf5356c6fac89'
 let currentInput
 let mouseInInput
@@ -36,6 +38,7 @@ let friendsButton = 'friendsButton';
 let verifyUserPrompt = 'verifyUserPrompt';
 let cancelButton = 'cancelButton';
 let settingsButton = 'settingsButton';
+let miniGames = 'miniGames';
 let cookieFriendLocation;
 let addFriend = 'addFriend';
 let connectingText
@@ -242,6 +245,156 @@ function checkFriendHTML(playerid, p) {
 // -- //
 
 // -- //
+// HANDLES SINGLE PLAYER CROWN CLICKER GAME
+function startSinglePlayerCrownClicker() {
+	if (!inGame) {
+		inGame=true
+		document.getElementById('minigamesWindow-window').style.visibility='hidden'
+		let a = document.createElement('div')
+		a.innerText = 'Starting in 3'
+		let sl = (($(window).width() / 2) - 300).toString();
+		let st = (($(window).height() / 2) - 90).toString();
+		a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
+		document.getElementsByClassName('relative')[0].appendChild(a)
+		var start = window.setInterval(function () {
+			if (a.innerText === 'Starting in 3') {
+				a.innerText = 'Starting in 2'
+			} else if (a.innerText === 'Starting in 2') {
+				a.innerText = 'Starting in 1'
+			} else if (a.innerText === 'Starting in 1') {
+				a.innerText = 'Starting in 0'
+			} else if (a.innerText === 'Starting in 0') {
+				a.remove()
+				clearInterval(start)
+			}
+		}, 1000);
+		var full = setTimeout(function () {
+			let time = 5
+			let done
+			let numCrowns = 0
+			let score = 0
+			let scoreText = document.createElement('div')
+			document.getElementsByClassName('relative')[0].appendChild(scoreText)
+			scoreText.id = 'crownClickScore'
+			scoreText.innerText = `Score: ${score.toString()}`
+			function updateStuff() {
+				scoreText.innerHTML = `<div id="crownClickScore" style="top: 0px; left: 38%; position: fixed; font-weight: bold; font-size: 100px; color: white;">Score: ${score.toString()}<div id="timeText"><div id="crownClickScore" style="top: 0px;position: absolute;font-weight: bold;font-size: 19px;color: white;left: 38%;">Timer: ${time.toString()}</div></div></div>`
+			}
+			updateStuff()
+			var goTime = window.setInterval(function () {
+				if (time > 0) {
+					time--
+					updateStuff()
+				}
+				if (time == 0) {
+				}
+			}, 1000)
+			var gameTime = window.setInterval(function () {
+				let ranxmax = $(window).width() - 50
+				let ranxmin = 50
+				let ranymax = $(window).height() - 50
+				let ranymin = 50
+				if (!done) {
+					if (time === 0) {
+						scoreText.remove()
+						$('.crownClick').remove()
+						$('.cursorClick').remove()
+						done = true
+					}
+					let cursorChance = Math.floor(Math.random() * (10 - 1) + 1)
+					if(cursorChance===7){
+						let curRandomX = Math.floor(Math.random() * (ranxmax - ranxmin) + ranxmin);
+						let curRandomY = Math.floor(Math.random() * (ranymax - ranymin) + ranymin);
+						let cursor = document.createElement('a')
+						cursor.innerHTML = '<img width="100" src="https://www.multiplayerpiano.com/cursor.png" style="-webkit-user-drag: none;">'
+						cursor.style = `position: fixed;top: ${curRandomY}px;left: ${curRandomX}px;`
+						document.getElementsByClassName('relative')[0].appendChild(cursor)
+						cursor.className = 'cursorClick'
+						cursor.addEventListener('click', function () {
+							cursor.remove()
+							score=score+10
+							updateStuff()
+
+						})
+					}
+					if (numCrowns < 8) {
+						let crown = document.createElement('a')
+						crown.innerHTML = '<img width="50" src="https://www.multiplayerpiano.com/crown.png" style="-webkit-user-drag: none;">'
+						let randomX = Math.floor(Math.random() * (ranxmax - ranxmin) + ranxmin);
+						let randomY = Math.floor(Math.random() * (ranymax - ranymin) + ranymin);
+						crown.style = `position: fixed;top: ${randomY}px;left: ${randomX}px;`
+						document.getElementsByClassName('relative')[0].appendChild(crown)
+						crown.className = 'crownClick'
+						crown.addEventListener('click', function () {
+							crown.remove()
+							numCrowns--
+							score++
+							updateStuff()
+						})
+						numCrowns++
+					}
+				} else {
+					let savedData
+					updateFriendArray()
+					for (let i = 0; i < cookies.length; i++) {
+						if (cookies[i][0].includes('crownClickerHighScore')) {
+							savedData = true
+							if (Number(cookies[i][1]) < score) {
+								document.cookie = `crownClickerHighScore=${score}; expires=${keepCookie}`
+								cursorClickerScore=score.toString()
+								let newHighScore = document.createElement('div')
+								document.getElementsByClassName('relative')[0].appendChild(newHighScore)
+								newHighScore.id = 'newHighScore'
+								newHighScore.innerText = `NEW HIGH SCORE: ${score.toString()}`
+								newHighScore.style = 'top: 67%;left: 28%;position: fixed;color: #3ebdbd;font-size: 73px;font-weight: bolder;opacity: 1;'
+								var fade = window.setInterval(function(){
+									let opacity = Number(newHighScore.style.opacity)
+									if(opacity>0){
+										opacity=opacity-0.1
+										newHighScore.style.opacity = opacity.toString()
+									}else{
+										newHighScore.remove()
+										clearInterval(fade)
+									}
+								},500)
+								break
+							} else {
+								let newHighScore = document.createElement('div')
+								document.getElementsByClassName('relative')[0].appendChild(newHighScore)
+								newHighScore.id = 'newHighScore'
+								newHighScore.innerText = `NO NEW HIGH SCORE: ${score.toString()}`
+								newHighScore.style = 'top: 67%;left: 23%;position: fixed;color: red;font-size: 73px;font-weight: bolder;opacity: 1;'
+								var fade = window.setInterval(function(){
+									let opacity = Number(newHighScore.style.opacity)
+									if(opacity>0){
+										opacity=opacity-0.1
+										newHighScore.style.opacity = opacity.toString()
+									}else{
+										newHighScore.remove()
+										clearInterval(fade)
+									}
+								},500)
+							}
+						}
+					}
+					if (!savedData) {
+						cursorClickerScore=score.toString()
+						document.cookie = `crownClickerHighScore=${score}; expires=${keepCookie}`
+					}
+					clearInterval(goTime)
+					clearInterval(gameTime)
+					clearInterval(full)
+					inGame=false
+					$('.crownClick').remove()
+					$('.cursorClick').remove()
+				}
+			}, 550)
+		}, 3500)
+	}
+}
+// -- //
+
+// -- //
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
 function scriptUser(playerid) {
 	let i = MPP.client.ppl
@@ -361,6 +514,15 @@ if (newsetup === false) {
 			bgr.push(cookies[i][0])
 			bgr.push(cookies[i][0 + 1])
 		};
+	}
+}
+// -- //
+
+// -- //
+// RESTORE CURSORCLICKER SCORE
+for (let i = 0; i < cookies.length; i++) {
+	if (cookies[i][0].includes('crownClickerHighScore')) {
+		cursorClickerScore=cookies[i][1]
 	}
 }
 // -- //
@@ -651,6 +813,92 @@ function buttonClicked(object, num) {
 				s.style.visibility = 'visible';
 			} else {
 				s.style.visibility = 'hidden';
+			}
+		}
+	}
+	if (num === 4) {
+		if (document.getElementById('minigamesWindow-window') === null && inGame===false) {
+			let a = document.createElement('div')
+			a.id = 'minigamesWindow-window'
+			a.className = 'dialog';
+			a.style.visibility = 'visible'
+			a.style.height = '400px'
+			settingsLeft = ($(window).width() / 2).toString();
+			settingsTop = (($(window).height() / 2) - 200).toString();
+			a.style.top = `${settingsTop}px`
+			a.style.left = `${settingsLeft}px`
+			document.getElementsByClassName('relative')[0].appendChild(a)
+			a.innerText = 'Minigames'
+			let b = document.createElement('a')
+			b.id = 'crownClickerGame'
+			b.style = 'background-color: rgb(172, 33, 62);color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
+			a.appendChild(b)
+			let c = document.createElement('div')
+			b.appendChild(c)
+			c.innerHTML = '<img  width="100" src="https://www.multiplayerpiano.com/crown.png">'
+			let d = document.createElement('div')
+			d.innerText = 'Crown Clicker'
+			d.style = 'position: absolute;top: 73px;left: 122px;font-size: 32px;'
+			b.appendChild(d)
+			updateFriendArray()
+			createDiv('Click the crowns and increase your score. Can this game be any easier?', b.id, '15px', `HIGHSCORE: ${cursorClickerScore}`)
+			b.addEventListener('click', function () {
+				if (document.getElementById('singlePlayer-crownClicker') === null && document.getElementById('multiPlayer-crownClicker') === null) {
+					let e = document.createElement('div')
+					e.className = 'ugly-button'
+					e.innerText = 'Singleplayer'
+					e.id = 'singlePlayer-crownClicker'
+					e.style='margin-top: 10px;margin-bottom: 10px;'
+					b.appendChild(e)
+					e.addEventListener('click', function () {
+						if(!inGame){
+							startSinglePlayerCrownClicker()
+						}else{
+							if(document.getElementById('inGameAlready')===null){
+							let j = document.createElement('div')
+							j.className = 'notification classic';
+							j.id='inGameAlready'
+							j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+							document.getElementsByClassName('relative')[0].appendChild(j)
+							let x = document.createElement('div')
+							x.innerHTML = 'Ⓧ'
+							x.className = 'x'
+							j.appendChild(x)
+							let k = document.createElement('div')
+							k.className = 'title'
+							k.innerText = 'FINISH OR END CURRENT GAME FIRST'
+							j.appendChild(k)
+							let p = document.createElement('div')
+							p.className = 'text'
+							p.innerText = 'Finish or end the game you are in right now before attempting to start a new one.'
+							j.appendChild(p)
+							x.addEventListener('click', () => {
+								j.remove()
+							})
+						}
+					}
+					})
+					let f = document.createElement('div')
+					f.className = 'ugly-button'
+					f.innerText = 'Multiplayer'
+					f.id = 'multiPlayer-crownClicker'
+					b.appendChild(f)
+					f.style='margin-top: 10px;margin-bottom: 10px;'
+					f.addEventListener('click', function () {
+
+					})
+				} else {
+					document.getElementById('singlePlayer-crownClicker').remove()
+					document.getElementById('multiPlayer-crownClicker').remove()
+				}
+			})
+		} else {
+			let i = document.getElementById('minigamesWindow-window')
+			if (i.style.visibility === 'visible') {
+				i.style.visibility = 'hidden'
+			} else if (i.style.visibility === 'hidden' && inGame===false){
+				i.style.visibility = 'visible'
+				$('a').find('legend').text(`HIGHSCORE: ${cursorClickerScore}`)
 			}
 		}
 	}
@@ -2119,6 +2367,7 @@ let test
 	cB(friendsButton, '660', '32', 'Friends', 0, 1);
 	cB(socketConnection, '780', '32', 'Not Connected', 0, 2);
 	cB(settingsButton, '779', '3', 'Settings', 0, 3);
+	cB(miniGames, '900', '32', 'Minigames', 0, 4);
 	window.addEventListener('resize', function () {
 		holderLeft = ($(window).width() - 260).toString()
 		holderTop = ($(window).height() - 7).toString()
@@ -2135,6 +2384,10 @@ let test
 		draggable = ($(window).height() + 10);
 		let w = document.getElementById('settingsWindow-window')
 		let z = document.getElementById('verifyUserPrompt-window')
+		let score = document.getElementById('crownClickScore')
+		if (score) {
+			score.style.left = '38%'
+		}
 		if (w) {
 			w.style.left = `${settingsLeft}px`
 			w.style.top = `${settingsTop}px`
