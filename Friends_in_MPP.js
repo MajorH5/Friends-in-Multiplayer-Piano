@@ -269,7 +269,7 @@ function startSinglePlayerCrownClicker() {
 			}
 		}, 1000);
 		var full = setTimeout(function () {
-			let time = 5
+			let time = 30
 			let done
 			let numCrowns = 0
 			let score = 0
