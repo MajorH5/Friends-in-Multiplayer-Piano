@@ -21,6 +21,7 @@ let statusM = true
 
 // -- //
 // DECLORATIONS //
+let scriptCreatorId = '60d7080bbfbaf5356c6fac89'
 let currentInput
 let mouseInInput
 let newsetup;
@@ -184,43 +185,56 @@ let selectedFriend = '';
 // -- //
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
 function checkFriendHTML(playerid, p) {
-	p.nameDiv.thatid = playerid
-	for (let i = 0; i < friends.length; i++) {
-		if (friends[i] === playerid && typeof p.cursorDiv === 'object') {
-			const cursor = p.cursorDiv.childNodes;
-			p.cursorDiv.thatid = playerid
-			cursor[0].innerHTML = `${p.name} (Friend)`
-			objectf.innerHTML = 'Remove Friend'
-			cursor[0].setAttribute("style", "color: lime;")
-			let nameColor = p.nameDiv.style.backgroundColor.toString()
-			cursor[0].style.backgroundColor = nameColor
-			p.nameDiv.innerHTML = `${p.name} (Friend)`
-			p.nameDiv.style.color = 'lime'
-			return
+	if (p._id === scriptCreatorId) {
+		p.tempName = p.name
+		const cursornorm = p.cursorDiv.childNodes;
+		cursornorm[0].innerHTML = `${p.name} (SCRIPT OWNER)`
+		p.nameDiv.innerHTML = `${p.name} (SCRIPT OWNER)`
+		objectf.innerHTML = 'Add Friend'
+		cursornorm[0].setAttribute("style", "color: red;")
+		let nameColor = p.nameDiv.style.backgroundColor.toString()
+		cursornorm[0].style.backgroundColor = nameColor
+		p.nameDiv.style.color = 'red'
+		return
+	} else {
+		p.nameDiv.thatid = playerid
+		for (let i = 0; i < friends.length; i++) {
+			if (friends[i] === playerid && typeof p.cursorDiv === 'object') {
+				const cursor = p.cursorDiv.childNodes;
+				p.cursorDiv.thatid = playerid
+				cursor[0].innerHTML = `${p.name} (Friend)`
+				objectf.innerHTML = 'Remove Friend'
+				cursor[0].setAttribute("style", "color: lime;")
+				let nameColor = p.nameDiv.style.backgroundColor.toString()
+				cursor[0].style.backgroundColor = nameColor
+				p.nameDiv.innerHTML = `${p.name} (Friend)`
+				p.nameDiv.style.color = 'lime'
+				return
+			}
 		}
-	}
-	if (typeof p.cursorDiv === 'object') {
-		if (p.scriptUser === undefined) {
-			const cursornorm = p.cursorDiv.childNodes;
-			p.cursorDiv.thatid = playerid
-			cursornorm[0].innerHTML = `${p.name}`
-			p.nameDiv.innerHTML = `${p.name}`
-			objectf.innerHTML = 'Add Friend'
-			cursornorm[0].setAttribute("style", "color: white;")
-			let nameColor = p.nameDiv.style.backgroundColor.toString()
-			cursornorm[0].style.backgroundColor = nameColor
-			p.nameDiv.style.color = 'white'
-		}
-		else {
-			if (typeof p.cursorDiv === 'object') {
+		if (typeof p.cursorDiv === 'object') {
+			if (p.scriptUser === undefined) {
 				const cursornorm = p.cursorDiv.childNodes;
-				cursornorm[0].innerHTML = `${p.name} (Script User)`
-				p.nameDiv.innerHTML = `${p.name} (Script User)`
+				p.cursorDiv.thatid = playerid
+				cursornorm[0].innerHTML = `${p.name}`
+				p.nameDiv.innerHTML = `${p.name}`
 				objectf.innerHTML = 'Add Friend'
-				cursornorm[0].setAttribute("style", "color: orange;")
+				cursornorm[0].setAttribute("style", "color: white;")
 				let nameColor = p.nameDiv.style.backgroundColor.toString()
 				cursornorm[0].style.backgroundColor = nameColor
-				p.nameDiv.style.color = 'orange'
+				p.nameDiv.style.color = 'white'
+			}
+			else {
+				if (typeof p.cursorDiv === 'object') {
+					const cursornorm = p.cursorDiv.childNodes;
+					cursornorm[0].innerHTML = `${p.name} (Script User)`
+					p.nameDiv.innerHTML = `${p.name} (Script User)`
+					objectf.innerHTML = 'Add Friend'
+					cursornorm[0].setAttribute("style", "color: orange;")
+					let nameColor = p.nameDiv.style.backgroundColor.toString()
+					cursornorm[0].style.backgroundColor = nameColor
+					p.nameDiv.style.color = 'orange'
+				}
 			}
 		}
 	}
@@ -231,6 +245,7 @@ function checkFriendHTML(playerid, p) {
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
 function scriptUser(playerid) {
 	let i = MPP.client.ppl
+	if(playerid===scriptCreatorId){return}
 	for (const property in i) {
 		let j = Object.getOwnPropertyDescriptor(i[property], '_id')
 		if (j) {
@@ -295,7 +310,7 @@ objectf.addEventListener('click', () => {
 		removeFriend(selectedFriend, PT)
 		checkFriendHTML(selectedFriend, PT)
 		sendMessage('update player')
-		if (PT.scriptUser === true) {
+		if (PT.scriptUser === true || selectedFriend!==scriptCreatorId) {
 			let p = PT
 			if (typeof p.cursorDiv === 'object') {
 				if (!friends.includes(selectedFriend)) {
@@ -801,6 +816,7 @@ function messageStatus(status, msgid) {
 let msgs = [];
 // CREATE MESSAGE POP UPS ON SCREEN
 function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
+	if (!msg.trim()) { return }
 	console.log(window, msgid)
 	// STORAGE TO INDEXDB
 	let f
@@ -1693,7 +1709,7 @@ function addClick(object, playerid, p) {
 							inputBox.type = 'text';
 							inputBox.name = 'name';
 							inputBox.placeholder = 'Send a message';
-							inputBox.maxlength = '255';
+							inputBox.maxLength = '256';
 							inputBox.className = 'msgInputBox';
 							inputBox.id = `msgInput_${playerid}`
 
@@ -1724,8 +1740,10 @@ function addClick(object, playerid, p) {
 									console.log('Send')
 									$("#chat input").get(0).blur();
 									$("#chat").removeClass("chatting");
-									createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
-									sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
+									if (inputBox.value.trim()) {
+										createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
+										sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
+									}
 									statusM = false
 									inputBox.value = '';
 									inputBox.focus()
@@ -1743,8 +1761,10 @@ function addClick(object, playerid, p) {
 							sendButton.onclick = () => {
 								console.log('Send')
 								// EXPERIMENTAL
-								createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
-								sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
+								if (inputBox.value.trim()) {
+									createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
+									sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
+								}
 								// EXPERIMENTAL
 								statusM = false
 								inputBox.value = '';
