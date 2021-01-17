@@ -245,7 +245,7 @@ function checkFriendHTML(playerid, p) {
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
 function scriptUser(playerid) {
 	let i = MPP.client.ppl
-	if(playerid===scriptCreatorId){return}
+	if (playerid === scriptCreatorId) { return }
 	for (const property in i) {
 		let j = Object.getOwnPropertyDescriptor(i[property], '_id')
 		if (j) {
@@ -310,7 +310,7 @@ objectf.addEventListener('click', () => {
 		removeFriend(selectedFriend, PT)
 		checkFriendHTML(selectedFriend, PT)
 		sendMessage('update player')
-		if (PT.scriptUser === true || selectedFriend!==scriptCreatorId) {
+		if (PT.scriptUser === true || selectedFriend === scriptCreatorId) {
 			let p = PT
 			if (typeof p.cursorDiv === 'object') {
 				if (!friends.includes(selectedFriend)) {
