@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Multiplayer Piano ADD-ON
 // @namespace    http://tampermonkey.net/
-// @version      1.3.1
+// @version      1.3.5
 // @description  Adds new features to MPP including add friends, do not show again, Direct Messaging etc.
 // @author       MajorH
 // @match        https://www.multiplayerpiano.com/*
@@ -632,7 +632,7 @@ function buttonClicked(object, num) {
 			let u = document.createElement('div')
 			u.id = 'versionNumber'
 			u.style = 'font-size: 16px;color: grey;top: 393px;position: absolute;'
-			u.innerText = '>Script By MajorH. v1.3.1'
+			u.innerText = '>Script By MajorH. v1.3.5'
 			s.appendChild(u)
 			let z = document.createElement('div')
 			z.id = 'manualVerify-btn'
