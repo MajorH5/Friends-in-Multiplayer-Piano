@@ -633,7 +633,7 @@ function buttonClicked(object, num) {
 			let u = document.createElement('div')
 			u.id = 'versionNumber'
 			u.style = 'font-size: 16px;color: grey;top: 393px;position: absolute;'
-			u.innerText = '>Script By MajorH. v1.3.5'
+			u.innerText = '>Script By MajorH. v1.3.6'
 			s.appendChild(u)
 			let z = document.createElement('div')
 			z.id = 'manualVerify-btn'
