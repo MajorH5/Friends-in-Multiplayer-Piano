@@ -248,8 +248,8 @@ function checkFriendHTML(playerid, p) {
 // HANDLES SINGLE PLAYER CROWN CLICKER GAME
 function startSinglePlayerCrownClicker() {
 	if (!inGame) {
-		inGame=true
-		document.getElementById('minigamesWindow-window').style.visibility='hidden'
+		inGame = true
+		document.getElementById('minigamesWindow-window').style.visibility = 'hidden'
 		let a = document.createElement('div')
 		a.innerText = 'Starting in 3'
 		let sl = (($(window).width() / 2) - 300).toString();
@@ -302,7 +302,7 @@ function startSinglePlayerCrownClicker() {
 						done = true
 					}
 					let cursorChance = Math.floor(Math.random() * (10 - 1) + 1)
-					if(cursorChance===7){
+					if (cursorChance === 7) {
 						let curRandomX = Math.floor(Math.random() * (ranxmax - ranxmin) + ranxmin);
 						let curRandomY = Math.floor(Math.random() * (ranymax - ranymin) + ranymin);
 						let cursor = document.createElement('a')
@@ -312,7 +312,7 @@ function startSinglePlayerCrownClicker() {
 						cursor.className = 'cursorClick'
 						cursor.addEventListener('click', function () {
 							cursor.remove()
-							score=score+10
+							score = score + 10
 							updateStuff()
 
 						})
@@ -341,22 +341,22 @@ function startSinglePlayerCrownClicker() {
 							savedData = true
 							if (Number(cookies[i][1]) < score) {
 								document.cookie = `crownClickerHighScore=${score}; expires=${keepCookie}`
-								cursorClickerScore=score.toString()
+								cursorClickerScore = score.toString()
 								let newHighScore = document.createElement('div')
 								document.getElementsByClassName('relative')[0].appendChild(newHighScore)
 								newHighScore.id = 'newHighScore'
 								newHighScore.innerText = `NEW HIGH SCORE: ${score.toString()}`
 								newHighScore.style = 'top: 67%;left: 28%;position: fixed;color: #3ebdbd;font-size: 73px;font-weight: bolder;opacity: 1;'
-								var fade = window.setInterval(function(){
+								var fade = window.setInterval(function () {
 									let opacity = Number(newHighScore.style.opacity)
-									if(opacity>0){
-										opacity=opacity-0.1
+									if (opacity > 0) {
+										opacity = opacity - 0.1
 										newHighScore.style.opacity = opacity.toString()
-									}else{
+									} else {
 										newHighScore.remove()
 										clearInterval(fade)
 									}
-								},500)
+								}, 500)
 								break
 							} else {
 								let newHighScore = document.createElement('div')
@@ -364,29 +364,30 @@ function startSinglePlayerCrownClicker() {
 								newHighScore.id = 'newHighScore'
 								newHighScore.innerText = `NO NEW HIGH SCORE: ${score.toString()}`
 								newHighScore.style = 'top: 67%;left: 23%;position: fixed;color: red;font-size: 73px;font-weight: bolder;opacity: 1;'
-								var fade = window.setInterval(function(){
+								var fade = window.setInterval(function () {
 									let opacity = Number(newHighScore.style.opacity)
-									if(opacity>0){
-										opacity=opacity-0.1
+									if (opacity > 0) {
+										opacity = opacity - 0.1
 										newHighScore.style.opacity = opacity.toString()
-									}else{
+									} else {
 										newHighScore.remove()
 										clearInterval(fade)
 									}
-								},500)
+								}, 500)
 							}
 						}
 					}
 					if (!savedData) {
-						cursorClickerScore=score.toString()
+						cursorClickerScore = score.toString()
 						document.cookie = `crownClickerHighScore=${score}; expires=${keepCookie}`
 					}
 					clearInterval(goTime)
 					clearInterval(gameTime)
 					clearInterval(full)
-					inGame=false
+					inGame = false
 					$('.crownClick').remove()
 					$('.cursorClick').remove()
+					sendMessage('update leaderboards', `crownclickerscore:${score}:${MPP.client.user._id}`)
 				}
 			}, 550)
 		}, 3500)
@@ -522,7 +523,7 @@ if (newsetup === false) {
 // RESTORE CURSORCLICKER SCORE
 for (let i = 0; i < cookies.length; i++) {
 	if (cookies[i][0].includes('crownClickerHighScore')) {
-		cursorClickerScore=cookies[i][1]
+		cursorClickerScore = cookies[i][1]
 	}
 }
 // -- //
@@ -817,7 +818,7 @@ function buttonClicked(object, num) {
 		}
 	}
 	if (num === 4) {
-		if (document.getElementById('minigamesWindow-window') === null && inGame===false) {
+		if (document.getElementById('minigamesWindow-window') === null && inGame === false) {
 			let a = document.createElement('div')
 			a.id = 'minigamesWindow-window'
 			a.className = 'dialog';
@@ -848,55 +849,128 @@ function buttonClicked(object, num) {
 					e.className = 'ugly-button'
 					e.innerText = 'Singleplayer'
 					e.id = 'singlePlayer-crownClicker'
-					e.style='margin-top: 10px;margin-bottom: 10px;'
+					e.style = 'margin-top: 10px;margin-bottom: 10px;'
 					b.appendChild(e)
 					e.addEventListener('click', function () {
-						if(!inGame){
+						if (!inGame) {
 							startSinglePlayerCrownClicker()
-						}else{
-							if(document.getElementById('inGameAlready')===null){
-							let j = document.createElement('div')
-							j.className = 'notification classic';
-							j.id='inGameAlready'
-							j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-							document.getElementsByClassName('relative')[0].appendChild(j)
-							let x = document.createElement('div')
-							x.innerHTML = 'Ⓧ'
-							x.className = 'x'
-							j.appendChild(x)
-							let k = document.createElement('div')
-							k.className = 'title'
-							k.innerText = 'FINISH OR END CURRENT GAME FIRST'
-							j.appendChild(k)
-							let p = document.createElement('div')
-							p.className = 'text'
-							p.innerText = 'Finish or end the game you are in right now before attempting to start a new one.'
-							j.appendChild(p)
-							x.addEventListener('click', () => {
-								j.remove()
-							})
+						} else {
+							if (document.getElementById('inGameAlready') === null) {
+								let j = document.createElement('div')
+								j.className = 'notification classic';
+								j.id = 'inGameAlready'
+								j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+								document.getElementsByClassName('relative')[0].appendChild(j)
+								let x = document.createElement('div')
+								x.innerHTML = 'Ⓧ'
+								x.className = 'x'
+								j.appendChild(x)
+								let k = document.createElement('div')
+								k.className = 'title'
+								k.innerText = 'FINISH OR END CURRENT GAME FIRST'
+								j.appendChild(k)
+								let p = document.createElement('div')
+								p.className = 'text'
+								p.innerText = 'Finish or end the game you are in right now before attempting to start a new one.'
+								j.appendChild(p)
+								x.addEventListener('click', () => {
+									j.remove()
+								})
+							}
 						}
-					}
 					})
 					let f = document.createElement('div')
 					f.className = 'ugly-button'
 					f.innerText = 'Multiplayer'
 					f.id = 'multiPlayer-crownClicker'
 					b.appendChild(f)
-					f.style='margin-top: 10px;margin-bottom: 10px;'
+					f.style = 'margin-top: 10px;margin-bottom: 10px;'
 					f.addEventListener('click', function () {
 
 					})
+					let g = document.createElement('div')
+					g.className = 'ugly-button'
+					g.innerText = 'Leaderboard'
+					g.id = 'leaderboards-crownClicker'
+					g.style = 'margin-top: 10px;margin-bottom: 10px;'
+					b.appendChild(g)
+					g.addEventListener('click', function () {
+						console.log('here')
+						let h = document.createElement('div')
+						h.id = 'crownClickerLeaderboardWindow-window'
+						h.className = 'dialog';
+						h.style.visibility = 'visible'
+						h.style.height = '400px'
+						settingsLeft = ($(window).width() / 2).toString();
+						settingsTop = (($(window).height() / 2) - 200).toString();
+						h.style.top = `${settingsTop}px`
+						h.style.left = `${settingsLeft}px`
+						a.style.visibility = 'hidden'
+						document.getElementsByClassName('relative')[0].appendChild(h)
+						h.innerText = 'Crownclicker Leaderboard'
+						console.log('end')
+						for (let j = 1; j < 11; j++) {
+							let i = document.createElement('a')
+							i.id = `rank_${j}`
+							i.innerText = '-'
+							i.style = 'background-color: black;color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
+							h.appendChild(i)
+						}
+						let j = document.createElement('div')
+						j.className = 'ugly-button'
+						j.innerText = 'Refresh Leaderboard'
+						j.id = 'refreshLeaderboard-crownClicker'
+						j.style = 'margin-top: 10px;margin-bottom: 10px;top: 363px;position: absolute;width: 127px;'
+						h.appendChild(j)
+						j.addEventListener('click', function(){
+							j.innerText='Refreshing...'
+							j.style.color='orange'
+							sendMessage('get leaderboard data', 'crownClickerLeaderboard')
+						})
+						let i = document.createElement('div')
+						i.className = 'ugly-button'
+						i.innerText = 'Submit Highscore'
+						i.id = 'submitHighscore-crownClicker'
+						i.style = 'margin-top: 10px;margin-bottom: 10px;width: 108px;position: absolute;top: 363px;left: 281px;'
+						h.appendChild(i)
+						i.addEventListener('click', function(){
+							if(MPP.client.user._id){
+								i.innerText='Submitting...'
+								i.style.color='orange'
+								sendMessage('update leaderboards', `crownclickerscore:${cursorClickerScore}:${MPP.client.user._id}`)
+							}else{
+								console.log("Couldn't grab playerId.")
+							}
+						})
+						let k = document.createElement('div')
+						h.appendChild(k)
+						k.innerHTML = '<img width="25" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 14px;left: 362px;">'
+						let x = document.createElement('a')
+						x.innerHTML = 'Ⓧ'
+						x.className = 'x'
+						x.style='color: red;position: absolute;top: 0px;left: 389px;'
+						x.addEventListener('click', function(){
+							h.remove()
+							a.style.visibility='visible'
+						})
+						h.appendChild(x)
+						let l = document.createElement('a')
+						l.innerText = `Your highscore: ${cursorClickerScore}`
+						h.appendChild(l)
+						sendMessage('get leaderboard data', 'crownClickerLeaderboard')
+					})
+
 				} else {
 					document.getElementById('singlePlayer-crownClicker').remove()
 					document.getElementById('multiPlayer-crownClicker').remove()
+					document.getElementById('leaderboards-crownClicker').remove()
 				}
 			})
 		} else {
 			let i = document.getElementById('minigamesWindow-window')
 			if (i.style.visibility === 'visible') {
 				i.style.visibility = 'hidden'
-			} else if (i.style.visibility === 'hidden' && inGame===false){
+			} else if (i.style.visibility === 'hidden' && inGame === false) {
 				i.style.visibility = 'visible'
 				$('a').find('legend').text(`HIGHSCORE: ${cursorClickerScore}`)
 			}
@@ -1190,7 +1264,6 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 								let p = f[property]
 								if (p.scriptUser === undefined) {
 									const cursor = p.cursorDiv.childNodes;
-									p.cursorDiv.thatid = playerid
 									cursor[0].innerHTML = `${p.name} (Friend)`
 									objectf.innerHTML = 'Remove Friend'
 									cursor[0].setAttribute("style", "color: lime;")
@@ -1539,6 +1612,65 @@ function sendMessage(param, msg, playerid, msgid) {
 			})
 		}
 	}
+	if (param === 'get leaderboard data') {
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(`requestleaderboard:${msg}`);
+		} else {
+			ws.addEventListener('open', function (e) {
+				if (ws.readyState === 0) {
+					ws.addEventListener('open', function (e) {
+						ws.send(`#${ownid}`);
+						ws.send(`requestleaderboard:${msg}`);
+					})
+				} else {
+					ws.send(`#${ownid}`);
+					ws.send(`requestleaderboard:${msg}`);
+				}
+			})
+		}
+	}
+	if (param === 'update leaderboards') {
+		let f=document.getElementById('submitHighscore-crownClicker')
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(`${msg}`);
+			if(f){
+				f.innerText='Submitted!'
+				f.style.color='lime'
+				setTimeout(function(){
+					f.innerText='Submit Highscore'
+					f.style.color='white'
+				}, 1000)
+			}
+		} else {
+			ws.addEventListener('open', function (e) {
+				if (ws.readyState === 0) {
+					ws.addEventListener('open', function (e) {
+						ws.send(`#${ownid}`);
+						ws.send(`${msg}`);
+						if(f){
+							f.innerText='Submitted!'
+							f.style.color='lime'
+							setTimeout(function(){
+								f.innerText='Submit Highscore'
+								f.style.color='white'
+							}, 1000)
+						}
+					})
+				} else {
+					ws.send(`#${ownid}`);
+					ws.send(`${msg}`);
+					if(f){
+						f.innerText='Submitted!'
+						f.style.color='lime'
+						setTimeout(function(){
+							f.innerText='Submit Highscore'
+							f.style.color='white'
+						}, 1000)
+					}
+				}
+			})
+		}
+	}
 }
 // -- //
 
@@ -1775,6 +1907,50 @@ function addListener() {
 				}
 				document.cookie = (`#${id}=${name}; expires=${keepCookie}`)
 			}
+		}
+		if (e.data.startsWith('[{"')) {
+			let i = JSON.parse(e.data)
+			console.log(i)
+
+			for (let j = 1; j < 11; j++) {
+				let rank = document.getElementById(`rank_${j}`)
+				let properties = Object.keys(i[j - 1])
+				let name
+				let id
+				let color
+				let score
+				let blank = 'EMPTY'
+				for (let o = 0; o < properties.length; o++) {
+					console.log(properties[o])
+					if (properties[o] === 'name') {
+						name = i[j-1]['name']
+					} else if (properties[o] === 'color') {
+						color = i[j-1]['color']
+					} else {
+						id = properties[o]
+						score = i[j-1][id]
+					}
+				}
+				if (id.length===24) {
+					if (rank !== null) {
+						rank.innerText = `Rank${j} - ${name} - ${id} - ${score}`
+						rank.style.backgroundColor=color
+					}
+				}else{
+					if (rank !== null) {
+						rank.innerText = `Rank${j} - ${blank} - ${blank} - ${blank}`
+					}
+				}
+			}
+			let q=document.getElementById('refreshLeaderboard-crownClicker')
+			if(q){
+				q.innerText='Refreshed!'
+				q.style.color='lime'
+			}
+			setTimeout(function(){
+				q.innerText='Refresh Leaderboard'
+				q.style.color='white'
+			}, 1000)
 		}
 	});
 }
