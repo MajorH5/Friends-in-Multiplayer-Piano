@@ -1,13 +1,15 @@
 // ==UserScript==
 // @name         Multiplayer Piano ADD-ON
 // @namespace    http://tampermonkey.net/
-// @version      1.3.5
+// @version      1.4
 // @description  Adds new features to MPP including add friends, do not show again, Direct Messaging etc.
 // @author       MajorH
 // @match        https://www.multiplayerpiano.com/*
 // @grant        none
 // ==/UserScript==
 // -- //
+
+
 // INITIALIZE DATABASE:
 let version
 let db
@@ -21,11 +23,17 @@ let statusM = true
 
 // -- //
 // DECLORATIONS //
+let allowGameRequest = true
 let cursorClickerScore = '0'
+let gameKey
+let alreadySetup = false
+let gameWasCanceled = false
 let inGame = false
 let scriptCreatorId = '60d7080bbfbaf5356c6fac89'
 let currentInput
 let mouseInInput
+let playingMultiplayerCrownClicker = false
+let currentlyPlaying = ''
 let newsetup;
 let cookies;
 let join
@@ -49,6 +57,7 @@ let WEBSOCKETLOCATION = 'wss://mppchatclient.info:8080/';
 let clickable = true
 let iloc;
 let jloc;
+let pendingRequest = false;
 let gBS;
 let messengerSetup = false;
 let socketConnection = 'socketConnection';
@@ -68,6 +77,8 @@ let friendRoomId = [];
 let roomreq
 let allowRoom
 let updateName = []
+let allowGameInitation = false
+let timerInterval
 const regWindowWidth = ($(window).width());
 const regWindowHeight = ($(window).height());
 let draggable = (regWindowHeight + 10);
@@ -633,7 +644,7 @@ function buttonClicked(object, num) {
 			let u = document.createElement('div')
 			u.id = 'versionNumber'
 			u.style = 'font-size: 16px;color: grey;top: 393px;position: absolute;'
-			u.innerText = '>Script By MajorH. v1.3.6'
+			u.innerText = '>Script By MajorH. v1.4'
 			s.appendChild(u)
 			let z = document.createElement('div')
 			z.id = 'manualVerify-btn'
@@ -886,7 +897,60 @@ function buttonClicked(object, num) {
 					b.appendChild(f)
 					f.style = 'margin-top: 10px;margin-bottom: 10px;'
 					f.addEventListener('click', function () {
-
+						let h = document.createElement('div')
+						h.id = 'crownClickerMultiplayer-window'
+						h.className = 'dialog';
+						h.style.visibility = 'visible'
+						h.style.height = '400px'
+						settingsLeft = ($(window).width() / 2).toString();
+						settingsTop = (($(window).height() / 2) - 200).toString();
+						h.style.top = `${settingsTop}px`
+						h.style.left = `${settingsLeft}px`
+						a.style.visibility = 'hidden'
+						h.style.color = 'black'
+						document.getElementsByClassName('relative')[0].appendChild(h)
+						h.innerText = 'Multiplayer Crownclicker'
+						let x = document.createElement('a')
+						x.innerHTML = 'Ⓧ'
+						x.className = 'x'
+						x.style = 'color: red;position: absolute;top: 0px;left: 389px;'
+						x.addEventListener('click', function () {
+							h.remove()
+							a.style.visibility = 'visible'
+						})
+						h.appendChild(x)
+						let g = document.getElementById('friendsWindow-window').childNodes
+						let l = document.createElement('div')
+						l.innerText = `Select friend to play with.`
+						h.appendChild(l)
+						for (let i = 1; i < g.length; i++) {
+							let k = g[i].cloneNode(true)
+							h.appendChild(k)
+							k.addEventListener('click', function () {
+								let friendId = k.id
+								if (!pendingRequest && document.getElementById('pendingRequest-window') == null) {
+									let q = document.createElement('div')
+									allowGameInitation=true
+									gameWasCanceled = false
+									q.innerHTML = (`<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: black;width: 331px;">Pending Request<div id="cancelPendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Cancel</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 11px;color: black;">Sending Request...</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`)
+									document.getElementsByClassName('relative')[0].appendChild(q)
+									currentlyPlaying = k.id
+									let cancel = document.getElementById('cancelPendingRequest')
+									cancel.addEventListener('click', function () {
+										q.remove()
+										gameWasCanceled = true
+										pendingRequest = false
+										currentlyPlaying = ''
+										allowGameInitation=false
+									})
+									sendMessage('multiplayer', `multiplayer:crownclicker:${friendId}:${ownid}`)
+								} else {
+									if (pendingRequest) {
+										console.log('You already have a pending request.')
+									}
+								}
+							})
+						}
 					})
 					let g = document.createElement('div')
 					g.className = 'ugly-button'
@@ -895,7 +959,6 @@ function buttonClicked(object, num) {
 					g.style = 'margin-top: 10px;margin-bottom: 10px;'
 					b.appendChild(g)
 					g.addEventListener('click', function () {
-						console.log('here')
 						let h = document.createElement('div')
 						h.id = 'crownClickerLeaderboardWindow-window'
 						h.className = 'dialog';
@@ -908,7 +971,6 @@ function buttonClicked(object, num) {
 						a.style.visibility = 'hidden'
 						document.getElementsByClassName('relative')[0].appendChild(h)
 						h.innerText = 'Crownclicker Leaderboard'
-						console.log('end')
 						for (let j = 1; j < 11; j++) {
 							let i = document.createElement('a')
 							i.id = `rank_${j}`
@@ -922,9 +984,9 @@ function buttonClicked(object, num) {
 						j.id = 'refreshLeaderboard-crownClicker'
 						j.style = 'margin-top: 10px;margin-bottom: 10px;top: 363px;position: absolute;width: 127px;'
 						h.appendChild(j)
-						j.addEventListener('click', function(){
-							j.innerText='Refreshing...'
-							j.style.color='orange'
+						j.addEventListener('click', function () {
+							j.innerText = 'Refreshing...'
+							j.style.color = 'orange'
 							sendMessage('get leaderboard data', 'crownClickerLeaderboard')
 						})
 						let i = document.createElement('div')
@@ -933,12 +995,12 @@ function buttonClicked(object, num) {
 						i.id = 'submitHighscore-crownClicker'
 						i.style = 'margin-top: 10px;margin-bottom: 10px;width: 108px;position: absolute;top: 363px;left: 281px;'
 						h.appendChild(i)
-						i.addEventListener('click', function(){
-							if(MPP.client.user._id){
-								i.innerText='Submitting...'
-								i.style.color='orange'
+						i.addEventListener('click', function () {
+							if (MPP.client.user._id) {
+								i.innerText = 'Submitting...'
+								i.style.color = 'orange'
 								sendMessage('update leaderboards', `crownclickerscore:${cursorClickerScore}:${MPP.client.user._id}`)
-							}else{
+							} else {
 								console.log("Couldn't grab playerId.")
 							}
 						})
@@ -948,10 +1010,10 @@ function buttonClicked(object, num) {
 						let x = document.createElement('a')
 						x.innerHTML = 'Ⓧ'
 						x.className = 'x'
-						x.style='color: red;position: absolute;top: 0px;left: 389px;'
-						x.addEventListener('click', function(){
+						x.style = 'color: red;position: absolute;top: 0px;left: 389px;'
+						x.addEventListener('click', function () {
 							h.remove()
-							a.style.visibility='visible'
+							a.style.visibility = 'visible'
 						})
 						h.appendChild(x)
 						let l = document.createElement('a')
@@ -1629,16 +1691,36 @@ function sendMessage(param, msg, playerid, msgid) {
 			})
 		}
 	}
-	if (param === 'update leaderboards') {
-		let f=document.getElementById('submitHighscore-crownClicker')
+	if (param === 'multiplayer') {
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(`${msg}`);
-			if(f){
-				f.innerText='Submitted!'
-				f.style.color='lime'
-				setTimeout(function(){
-					f.innerText='Submit Highscore'
-					f.style.color='white'
+			pendingRequest = true
+		} else {
+			ws.addEventListener('open', function (e) {
+				if (ws.readyState === 0) {
+					ws.addEventListener('open', function (e) {
+						ws.send(`#${ownid}`);
+						ws.send(`${msg}`);
+						pendingRequest = true
+					})
+				} else {
+					ws.send(`#${ownid}`);
+					ws.send(`${msg}`);
+					pendingRequest = true
+				}
+			})
+		}
+	}
+	if (param === 'update leaderboards') {
+		let f = document.getElementById('submitHighscore-crownClicker')
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(`${msg}`);
+			if (f) {
+				f.innerText = 'Submitted!'
+				f.style.color = 'lime'
+				setTimeout(function () {
+					f.innerText = 'Submit Highscore'
+					f.style.color = 'white'
 				}, 1000)
 			}
 		} else {
@@ -1647,24 +1729,24 @@ function sendMessage(param, msg, playerid, msgid) {
 					ws.addEventListener('open', function (e) {
 						ws.send(`#${ownid}`);
 						ws.send(`${msg}`);
-						if(f){
-							f.innerText='Submitted!'
-							f.style.color='lime'
-							setTimeout(function(){
-								f.innerText='Submit Highscore'
-								f.style.color='white'
+						if (f) {
+							f.innerText = 'Submitted!'
+							f.style.color = 'lime'
+							setTimeout(function () {
+								f.innerText = 'Submit Highscore'
+								f.style.color = 'white'
 							}, 1000)
 						}
 					})
 				} else {
 					ws.send(`#${ownid}`);
 					ws.send(`${msg}`);
-					if(f){
-						f.innerText='Submitted!'
-						f.style.color='lime'
-						setTimeout(function(){
-							f.innerText='Submit Highscore'
-							f.style.color='white'
+					if (f) {
+						f.innerText = 'Submitted!'
+						f.style.color = 'lime'
+						setTimeout(function () {
+							f.innerText = 'Submit Highscore'
+							f.style.color = 'white'
 						}, 1000)
 					}
 				}
@@ -1736,7 +1818,7 @@ function addListener() {
 							if (z) { z.innerText = 'Verified', z.style.color = 'lime' }
 							client.stop();
 						}
-						if (msg.a.toString().toLowerCase().startsWith('could not authenticate.')) {
+						if (msg.a.toString().toLowerCase().startsWith('could not authenticate user')) {
 							console.log('Authentication failure.')
 							authenticationStatus = false
 							document.cookie = (`&verificationStatus=false; expires=${keepCookie}`)
@@ -1923,35 +2005,261 @@ function addListener() {
 				for (let o = 0; o < properties.length; o++) {
 					console.log(properties[o])
 					if (properties[o] === 'name') {
-						name = i[j-1]['name']
+						name = i[j - 1]['name']
 					} else if (properties[o] === 'color') {
-						color = i[j-1]['color']
+						color = i[j - 1]['color']
 					} else {
 						id = properties[o]
-						score = i[j-1][id]
+						score = i[j - 1][id]
 					}
 				}
-				if (id.length===24) {
+				if (id.length === 24) {
 					if (rank !== null) {
 						rank.innerText = `Rank${j} - ${name} - ${id} - ${score}`
-						rank.style.backgroundColor=color
+						rank.style.backgroundColor = color
 					}
-				}else{
+				} else {
 					if (rank !== null) {
 						rank.innerText = `Rank${j} - ${blank} - ${blank} - ${blank}`
 					}
 				}
 			}
-			let q=document.getElementById('refreshLeaderboard-crownClicker')
-			if(q){
-				q.innerText='Refreshed!'
-				q.style.color='lime'
+			let q = document.getElementById('refreshLeaderboard-crownClicker')
+			if (q) {
+				q.innerText = 'Refreshed!'
+				q.style.color = 'lime'
 			}
-			setTimeout(function(){
-				q.innerText='Refresh Leaderboard'
-				q.style.color='white'
+			setTimeout(function () {
+				q.innerText = 'Refresh Leaderboard'
+				q.style.color = 'white'
 			}, 1000)
 		}
+		if (e.data.startsWith('multiplayerrequest:')) {
+			if (allowGameRequest) {
+				let game = e.data.split(':')[1]
+				let reqid = e.data.split(':')[2]
+				if (!friends.includes(reqid)) {
+					ws.send(`mulreqfail:${game}:Player is not on friends list.:${reqid}`)
+				} else {
+					if (document.getElementById('multiplayerGameRequest') == null) {
+						let j = document.createElement('div')
+						j.className = 'notification classic';
+						j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+						j.id = 'multiplayerGameRequest'
+						document.getElementsByClassName('relative')[0].appendChild(j)
+						let x = document.createElement('div')
+						x.innerHTML = 'Ⓧ'
+						x.className = 'x'
+						j.appendChild(x)
+						let k = document.createElement('div')
+						k.className = 'title'
+						k.innerText = `You have a game request from ${reqid}:`
+						j.appendChild(k)
+						let p = document.createElement('div')
+						p.className = 'text'
+						p.innerText = `${reqid}, has requested to play a game of ${game} with you. Accept or Deny?`
+						j.appendChild(p)
+						let e = document.createElement('div')
+						e.className = 'ugly-button'
+						e.innerText = 'Accept'
+						e.style.color = 'green'
+						e.id = 'acceptMultiplayerRequest'
+						e.style = 'margin-top: 10px;margin-bottom: 10px;'
+						j.appendChild(e)
+						let o = document.createElement('div')
+						o.className = 'ugly-button'
+						o.innerText = 'Deny'
+						o.style.color = 'red'
+						o.id = 'denyMultiplayerRequest'
+						o.style = 'margin-top: 10px;margin-bottom: 10px;'
+						j.appendChild(o)
+						e.addEventListener('click', function () {
+							currentlyPlaying=reqid
+							ws.send(`initiateGame:crownclicker:${reqid}:${ownid}`)
+							allowGameInitation = true
+							setTimeout(function () {
+								if (allowGameInitation) {
+									allowGameInitation = false
+									console.log('Initiation for multiplayer games has closed.')
+								}
+							},10000)
+						})
+						o.addEventListener('click', function () {
+							j.remove()
+							ws.send(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
+						})
+						x.addEventListener('click', () => {
+							j.remove()
+							ws.send(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
+						})
+					}
+				}
+			} else {
+				ws.send(`mulreqfail:${game}:Player does not accept game requests.:${reqid}`)
+			}
+		}
+		if (e.data.startsWith('mulreqfail:')) {
+			if (pendingRequest) {
+				let game = e.data.split(':')[1]
+				let reason = e.data.split(':')[2]
+				let reqid = e.data.split(':')[4]
+				if (friends.includes(reqid)) {
+					pendingRequest = false
+					currentlyPlaying = ''
+					allowGameInitation=false
+					let requestWindow = document.getElementById('pendingRequest-window')
+					if (requestWindow !== null) {
+						clearInterval(timerInterval)
+						requestWindow.innerHTML = `<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: red;width: 331px;">Request Denied!<div id="closePendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Close</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 13px;color: red;">Request Failed</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`
+						let cancel = document.getElementById('closePendingRequest')
+						cancel.addEventListener('click', function () {
+							requestWindow.remove()
+						})
+						setTimeout(function () {
+							if (requestWindow !== null) {
+								requestWindow.remove()
+							}
+						}, 5000)
+						let j = document.createElement('div')
+						j.className = 'notification classic';
+						j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+						document.getElementsByClassName('relative')[0].appendChild(j)
+						let x = document.createElement('div')
+						x.innerHTML = 'Ⓧ'
+						x.className = 'x'
+						j.appendChild(x)
+						let k = document.createElement('div')
+						k.className = 'title'
+						k.innerText = `Your request to play '${game}' failed:`
+						j.appendChild(k)
+						let p = document.createElement('div')
+						p.className = 'text'
+						p.innerText = reason
+						j.appendChild(p)
+						x.addEventListener('click', () => {
+							j.remove()
+						})
+
+					}
+					console.log(`Multiplayer request for ${game} failed because ${reason}.`)
+				} else {
+					console.warn('A failed multiplayer request was received, however The user was not on the friends list, how?')
+				}
+			} else {
+				console.warn('A failed multiplayer request was received, however no request to play with friend was made.')
+			}
+		}
+		if (e.data.startsWith('beginmultiplayer:')) {
+			if (allowGameInitation) {
+				let gameKey = e.data.split(':')[2]
+				let game = e.data.split(':')[1]
+				let friendId = e.data.split(':')[3]
+				if (friends.includes(friendId)) {
+					if (currentlyPlaying === friendId) {
+						if(game==='crownclicker'){
+						playingMultiplayerCrownClicker = true
+						inGame=true
+						allowGameInitation=false
+						}
+					} else {
+						console.warn('A multiplayer initiate request was received, however there was not any pending request for this user.')
+						ws.send('initiatefailed:There is no pending request for this user.')
+					}
+				} else {
+					console.warn('A multiplayer initiate request was received, however The user was not on the friends list, how?')
+					ws.send('initiatefailed:The playerid given is not on the friends list')
+				}
+			} else {
+				console.warn('A multiplayer initiate request was received, however The status to play was false.')
+				ws.send('initiatefailed:A multiplayer initiate request was received, however The status to play was false.')
+			}
+		}
+		if (e.data.startsWith('confirmedsent:')) {
+			if (pendingRequest) {
+				let requestWindow = document.getElementById('pendingRequest-window')
+				requestWindow.innerHTML = `<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: lime;width: 331px;">Request Sent!<div id="cancelPendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Cancel</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 17px;color: lime;">30 Sec Left</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`
+				let timer = document.getElementById('pendingRequestTimer')
+				document.getElementById('cancelPendingRequest').addEventListener('click', function () {
+					clearInterval(timerInterval)
+					pendingRequest = false
+					gameWasCanceled = true
+					requestWindow.remove()
+					currentlyPlaying = ''
+					allowGameInitation=false
+				})
+				if (requestWindow !== null) {
+					let time = 30
+					timerInterval = window.setInterval(function () {
+						console.log('Running.')
+						if (!gameWasCanceled) {
+							timer.innerText = `${time.toString()} Sec Left`
+							time--
+							if (timer.innerText === '20 Sec Left') {
+								timer.style.color = 'orange'
+							} else if (timer.innerText === '10 Sec Left') {
+								timer.style.color = 'red'
+							}
+							if (time === 0) {
+								clearInterval(timerInterval)
+								pendingRequest = false
+								requestWindow.remove()
+								currentlyPlaying = ''
+								allowGameInitation=false
+							}
+						} else {
+							clearInterval(timerInterval)
+							pendingRequest = false
+							requestWindow.remove()
+							currentlyPlaying = ''
+							allowGameInitation=false
+						}
+					}, 1000)
+				}
+			}
+		}
+		if (playingMultiplayerCrownClicker) {
+			if (e.data.startsWith('ingamecrownclicker:')) {
+				let command = e.data.split(':')[1]
+				switch (command) {
+					case 'setup':
+						if (!alreadySetup) {
+							let ownscore = document.createElement('div')
+							let friendscore = document.createElement('div')
+							ownscore.innerHTML = '<div id="ownCrownClickerScoreDIV"><div id="ownCrownClickerScore" style="top: 0px;left: 13%;position: fixed;font-weight: bold;font-size: 100px;color: white;">Score: 0<div id="timeText"><div id="ownCrownClickerMultiplayerTimer" style="top: 0px;position: absolute;font-weight: bold;font-size: 19px;color: white;left: 38%;">Timer: 30</div></div></div></div>'
+							friendscore.innerHTML = '<div id="friendCrownClickerScoreDIV"><div id="friendCrownClickerScore" style="top: 0px;left: 64%;position: fixed;font-weight: bold;font-size: 100px;color: white;">Score: 0<div id="timeText"><div id="friendCrownClickerMultiplayerTimer" style="top: 0px;position: absolute;font-weight: bold;font-size: 19px;color: white;left: 38%;">Timer: 30</div></div></div></div>'
+document.getElementsByClassName('relative')[0].appendChild(ownscore)
+document.getElementsByClassName('relative')[0].appendChild(friendscore)
+							ws.send(`ingame:crownclicker:ROOM SETUP:${currentlyPlaying}:${ownid}`)
+							alreadySetup=true
+						}else{
+							console.log('user is already setup')
+						}
+						break;
+					case 'time':
+						let time=e.data.split(':')[2]
+						let ownTimer = document.getElementById('ownCrownClickerMultiplayerTimer')
+						let friendTimer = document.getElementById('friendCrownClickerMultiplayerTimer')
+						if(friendTimer!==null && ownTimer!==null){
+							ownTimer.innerText=`Timer: ${time}`
+							friendTimer.innerText=`Timer: ${time}`
+						}else{
+							ws.send(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Could not generate timers.`)
+						}
+						break;
+					case 'score':
+						let ownscore = document.getElementById('ownCrownClickerScore').innerText.split('T')[0].split(' ')[1]
+						let friendscore = document.getElementById('friendCrownClickerScore').innerText.split('T')[0].split(' ')[1]
+						ws.send(`ingame:crownclicker:SCORE:${ownscore}:${friendscore}`)
+						break;
+
+
+				}
+			}
+			if (e.data.startsWith('shutdownGame:')) {
+alreadySetup=false
+			}
+		}
+		console.log(e.data)
 	});
 }
 // -- //
