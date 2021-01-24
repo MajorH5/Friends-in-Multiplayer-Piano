@@ -23,11 +23,21 @@ let statusM = true
 
 // -- //
 // DECLORATIONS //
+let disablePopups
+let gotVersionNo
+let scriptWebsite = 'https://raw.githubusercontent.com/MajorH5/Friends-in-Multiplayer-Piano/main/Friends_in_MPP.js'
+let versionNo = '1.4'
+let authenticationStatus
+let time
+let multiplayerScore = 0
+let multiplayerCrownAmmount = 0
+let multiplayerGameStatus = false
 let allowGameRequest = true
 let cursorClickerScore = '0'
 let gameKey
 let alreadySetup = false
 let gameWasCanceled = false
+let debuggingMode = false
 let inGame = false
 let scriptCreatorId = '60d7080bbfbaf5356c6fac89'
 let currentInput
@@ -46,6 +56,7 @@ let friendsButton = 'friendsButton';
 let verifyUserPrompt = 'verifyUserPrompt';
 let cancelButton = 'cancelButton';
 let settingsButton = 'settingsButton';
+let debugWindow = 'debugWindow'
 let miniGames = 'miniGames';
 let cookieFriendLocation;
 let addFriend = 'addFriend';
@@ -114,6 +125,18 @@ setTimeout(function () {
 let deleteCookie = 'Thu, 01 Jan 1970 00:00:01 GMT,';
 let keepCookie = 'Thu, 01 Jan 2030 00:00:01 GMT,';
 let nameDiv = [];
+// -- //
+
+// -- //
+// ATTACHES PSEUDO CROWN ONTO NAME DIV
+// function createPsuedoCrown(i) {
+// 	console.log('running')
+// 	for(let k=0;k<i.length;k++){
+// 		let pseudoCrown = document.createElement('div')
+// 		pseudoCrown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+// 		i[k].appendChild(pseudoCrown)
+// 	}
+// }
 // -- //
 
 // -- //
@@ -194,6 +217,19 @@ let objectf = document.createElement('div');
 // -- //
 // PREVENTS BUTTON FROM ADDING ID TOO MANY TIMES
 let selectedFriend = '';
+// -- //
+
+// -- //
+// ATTACH MESSAGE TO DEBUG WINDOW
+function debug(data) {
+	let debugWindow = document.getElementById('debugWindow-window')
+	if (debuggingMode && debugWindow !== null) {
+		let message = document.createElement('div')
+		message.style = 'background-color: white;color: black;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
+		message.innerText = data
+		debugWindow.appendChild(message)
+	}
+}
 // -- //
 
 // -- //
@@ -439,6 +475,10 @@ function scriptUser(playerid) {
 // -- //
 // ADD FRIEND MENU ITEM:
 MPP.client.on('participant added', (p) => {
+	// createPsuedoCrown($('.name'))
+	// p.nameDiv.addEventListener('click', function(){
+	// 	createPsuedoCrown([p.nameDiv])
+	// })
 	setTimeout(function () {
 		owncolor = document.getElementsByClassName('name me')[0].style.backgroundColor
 	}, 10000)
@@ -587,6 +627,49 @@ function cBC(object) {
 // -- //
 
 // -- //
+// RESTORES SAVED DISABLE POPUP STATUS FOR SETTINGS WINDOW
+let thingFound
+if (newsetup === false) {
+	for (let i = 0; i < cookies.length; i++) {
+		if (cookies[i][0].includes('%')) {
+			if (cookies[i][1] === 'true') {
+				disablePopups = true
+				thingFound = true
+			} else if (cookies[i][1] === 'false') {
+				disablePopups = false
+				thingFound = true
+			}
+		};
+	}
+}
+if (!thingFound) {
+	document.cookie = '%disablePopups=false'
+}
+// -- //
+
+// -- //
+// HIDES OTHER WINDOWS WHEN NEW ONE IS OPEN
+function hideWindows(i) {
+	let settingwin = document.getElementById('settingsWindow-window')
+	let crownmul = document.getElementById('crownClickerMultiplayer-window')
+	let mulplaty = document.getElementById('minigamesWindow-window')
+	let crownLeader = document.getElementById('crownClickerLeaderboardWindow-window')
+	if (settingwin !== null && settingwin.style.visibility == 'visible' && i !== 'settings') {
+		settingwin.style.visibility = 'hidden'
+	}
+	if (crownmul !== null && crownmul.style.visibility == 'visible' && i !== 'crownmul') {
+		crownmul.style.visibility = 'hidden'
+	}
+	if (mulplaty !== null && mulplaty.style.visibility == 'visible' && i !== 'mulplaty') {
+		mulplaty.style.visibility = 'hidden'
+	}
+	if (crownLeader !== null && crownLeader.style.visibility == 'visible' && i !== 'crownLeader') {
+		crownLeader.style.visibility = 'hidden'
+	}
+}
+// -- //
+
+// -- //
 // PERFORM BUTTON ACTION:
 function buttonClicked(object, num) {
 	if (num === 1) { //HIDES OR SHOWS FRIENDS WINDOW
@@ -610,6 +693,7 @@ function buttonClicked(object, num) {
 	if (num === 3) {
 		let s = document.getElementById('settingsWindow-window')
 		if (s === null) {
+			hideWindows('settings')
 			s = document.createElement('div')
 			s.id = 'settingsWindow-window'
 			s.className = 'dialog';
@@ -619,7 +703,13 @@ function buttonClicked(object, num) {
 			settingsTop = (($(window).height() / 2) - 200).toString();
 			s.style.top = `${settingsTop}px`
 			s.style.left = `${settingsLeft}px`
+			s.style.overflow = 'hidden scroll'
+			s.style.overflowWrap = 'anywhere'
 			document.getElementsByClassName('relative')[0].appendChild(s)
+			let u = document.createElement('div')
+			u.id = 'versionNumber'
+			u.style = 'font-size: 16px;color: grey;padding-bottom: 11px;'
+			u.innerText = '>Script By MajorH. v1.4'
 			s.innerText = 'Settings'
 			let a = document.createElement('div')
 			a.id = 'allowFriendJoin-btn'
@@ -638,14 +728,9 @@ function buttonClicked(object, num) {
 					a.innerText = 'Try Again', a.style.color = 'black'
 				}
 			})
+			s.appendChild(u)
 			s.appendChild(a)
 			createDiv('This button enables/disables your friends from joining your rooms.', s.id, '15px', 'ALLOW FRIENDS TO JOIN')
-
-			let u = document.createElement('div')
-			u.id = 'versionNumber'
-			u.style = 'font-size: 16px;color: grey;top: 393px;position: absolute;'
-			u.innerText = '>Script By MajorH. v1.4'
-			s.appendChild(u)
 			let z = document.createElement('div')
 			z.id = 'manualVerify-btn'
 			z.className = 'ugly-button'
@@ -818,11 +903,124 @@ function buttonClicked(object, num) {
 					})
 				}
 			})
+			let debugButton = document.createElement('div')
+			debugButton.id = 'debugMode-btn'
+			debugButton.className = 'ugly-button'
+			debugButton.innerText = 'Debug Mode'
+			debugButton.style.color = 'white'
+			s.appendChild(debugButton)
+			createDiv('This button enables debugging mode. No need to use this unless your interested in communications between the server and client.', s.id, '15px', 'DEBUGGING MODE')
+			debugButton.addEventListener('click', function () {
+				if (document.getElementById('debugWindow-window') === null) {
+					debuggingMode = true
+					debugButton.style.color = 'lime'
+					cDW(debugWindow, '0', '0', '400', 'CLIENT SERVER COMMUNICATIONS', `overflow: hidden scroll;visibility: visible;position: absolute;display: block;overflow-wrap: anywhere;height: 400px;top: -784px;left: ${windowSize}px;`)
+					addListeners();
+					let mousedown
+					function addListeners() {
+						document.getElementById('debugWindow-window').addEventListener('mousedown', mouseDown, false);
+						window.addEventListener('mouseup', mouseUp, false);
+
+					}
+					function mouseUp() {
+						mousedown = false
+						window.removeEventListener('mousemove', divMove, true);
+					}
+
+					function mouseDown(e) {
+						mousedown = true
+						window.addEventListener('mousemove', divMove, true);
+					}
+					function divMove(e) {
+						var div = document.getElementById('debugWindow-window');
+
+						setTimeout(function () {
+							if (mousedown === true) {
+								div.style.position = 'absolute';
+								div.style.top = (e.clientY - draggable) + 'px';
+								div.style.left = (e.clientX) + 'px';
+							}
+						}, 100)
+					}
+				} else {
+					let s = document.getElementById('debugWindow-window')
+					if (s.style.visibility === 'hidden') {
+						s.style.visibility = 'visible';
+						debugButton.style.color = 'lime'
+						debuggingMode = true
+					} else {
+						s.style.visibility = 'hidden';
+						debugButton.style.color = 'white'
+						debuggingMode = false
+					}
+				}
+			})
+			let updatesButton = document.createElement('div')
+			updatesButton.id = 'checkUpdate-btn'
+			updatesButton.className = 'ugly-button'
+			updatesButton.innerText = 'Check for Update'
+			updatesButton.style = 'color: white;width: 112px;'
+			s.appendChild(updatesButton)
+			createDiv('Check for a new version. Make sure to check frequently for updates', s.id, '15px', 'CHECK FOR UPDATES')
+			updatesButton.addEventListener('click', function () {
+				updatesButton.innerText = 'Checking...'
+				updatesButton.style.color = 'orange'
+				sendMessage('version check', versionNo)
+				setTimeout(function () {
+					if (!gotVersionNo) {
+						updatesButton.innerText = 'Failed'
+						updatesButton.style.color = 'red'
+					}
+				}, 10000)
+			})
+
+
+			let disablePopup = document.createElement('div')
+			disablePopup.id = 'disablePopups-btn'
+			disablePopup.className = 'ugly-button'
+			if (disablePopups) {
+				disablePopup.innerText = 'Enabled'
+				disablePopup.style = 'color: lime;'
+			} else {
+				disablePopup.innerText = 'Disabled'
+				disablePopup.style = 'color: red;'
+			}
+			s.appendChild(disablePopup)
+			disablePopup.addEventListener('click', function () {
+				if (disablePopups) {
+					document.cookie = '%disablePopups=false'
+					disablePopups = false
+					disablePopup.innerText = 'Disabled'
+					disablePopup.style = 'color: red;'
+				} else {
+					document.cookie = '%disablePopups=true'
+					disablePopups = true
+					disablePopup.innerText = 'Enabled'
+					disablePopup.style = 'color: lime;'
+				}
+			})
+			createDiv('Clicking this will enable/disable the popup warning from appearing when you open the site. It also removes messages like "You can play the piano"', s.id, '15px', 'REMOVE POPUPS.')
+
+			let aboutButton = document.createElement('div')
+			aboutButton.id = 'about-btn'
+			aboutButton.className = 'ugly-button'
+			aboutButton.innerText = 'About'
+			let github = 'https://github.com/MajorH5/Friends-in-Multiplayer-Piano'
+			aboutButton.href = github
+			aboutButton.style = 'color: white;'
+			aboutButton.target = '_blank'
+			s.appendChild(aboutButton)
+			aboutButton.addEventListener('click', function () {
+				var win = window.open(github, '_blank');
+				win.focus();
+			})
+			createDiv('This will open to the script github where you can see update logs and read about the script.', s.id, '15px', 'ABOUT THIS SCRIPT.')
 		} else {
 			let a = document.getElementById('allowFriendJoin-btn')
 			if (s.style.visibility === 'hidden' && (document.getElementById('verifyUserPrompt-window') === null && document.getElementById('delete-Site-DataWarning') === null)) {
 				if (allowRoom === true) { a.innerText = 'Enabled', a.style.color = 'lime' } else if (allowRoom === false) { a.innerText = 'Disabled', a.style.color = 'red' } else { a.innerText = '-', a.style.color = 'black' }
 				s.style.visibility = 'visible';
+				hideWindows('settings')
 			} else {
 				s.style.visibility = 'hidden';
 			}
@@ -830,6 +1028,7 @@ function buttonClicked(object, num) {
 	}
 	if (num === 4) {
 		if (document.getElementById('minigamesWindow-window') === null && inGame === false) {
+			hideWindows('mulplaty')
 			let a = document.createElement('div')
 			a.id = 'minigamesWindow-window'
 			a.className = 'dialog';
@@ -897,59 +1096,107 @@ function buttonClicked(object, num) {
 					b.appendChild(f)
 					f.style = 'margin-top: 10px;margin-bottom: 10px;'
 					f.addEventListener('click', function () {
-						let h = document.createElement('div')
-						h.id = 'crownClickerMultiplayer-window'
-						h.className = 'dialog';
-						h.style.visibility = 'visible'
-						h.style.height = '400px'
-						settingsLeft = ($(window).width() / 2).toString();
-						settingsTop = (($(window).height() / 2) - 200).toString();
-						h.style.top = `${settingsTop}px`
-						h.style.left = `${settingsLeft}px`
-						a.style.visibility = 'hidden'
-						h.style.color = 'black'
-						document.getElementsByClassName('relative')[0].appendChild(h)
-						h.innerText = 'Multiplayer Crownclicker'
-						let x = document.createElement('a')
-						x.innerHTML = 'Ⓧ'
-						x.className = 'x'
-						x.style = 'color: red;position: absolute;top: 0px;left: 389px;'
-						x.addEventListener('click', function () {
-							h.remove()
-							a.style.visibility = 'visible'
-						})
-						h.appendChild(x)
-						let g = document.getElementById('friendsWindow-window').childNodes
-						let l = document.createElement('div')
-						l.innerText = `Select friend to play with.`
-						h.appendChild(l)
-						for (let i = 1; i < g.length; i++) {
-							let k = g[i].cloneNode(true)
-							h.appendChild(k)
-							k.addEventListener('click', function () {
-								let friendId = k.id
-								if (!pendingRequest && document.getElementById('pendingRequest-window') == null) {
-									let q = document.createElement('div')
-									allowGameInitation=true
-									gameWasCanceled = false
-									q.innerHTML = (`<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: black;width: 331px;">Pending Request<div id="cancelPendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Cancel</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 11px;color: black;">Sending Request...</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`)
-									document.getElementsByClassName('relative')[0].appendChild(q)
-									currentlyPlaying = k.id
-									let cancel = document.getElementById('cancelPendingRequest')
-									cancel.addEventListener('click', function () {
-										q.remove()
-										gameWasCanceled = true
-										pendingRequest = false
-										currentlyPlaying = ''
-										allowGameInitation=false
-									})
-									sendMessage('multiplayer', `multiplayer:crownclicker:${friendId}:${ownid}`)
-								} else {
-									if (pendingRequest) {
-										console.log('You already have a pending request.')
-									}
-								}
+						if (document.getElementById('crownClickerMultiplayer-window') == null) {
+							hideWindows('crownmul')
+							let h = document.createElement('div')
+							h.id = 'crownClickerMultiplayer-window'
+							h.className = 'dialog';
+							h.style = 'visibility: visible;height: 400px;top: 284.5px;left: 960px;overflow: hidden scroll;color: black;'
+							h.style.visibility = 'visible'
+							h.style.height = '400px'
+							settingsLeft = ($(window).width() / 2).toString();
+							settingsTop = (($(window).height() / 2) - 200).toString();
+							h.style.top = `${settingsTop}px`
+							h.style.left = `${settingsLeft}px`
+							a.style.visibility = 'hidden'
+							h.style.color = 'black'
+							document.getElementsByClassName('relative')[0].appendChild(h)
+							h.innerText = 'Multiplayer Crownclicker'
+							let x = document.createElement('a')
+							x.innerHTML = 'Ⓧ'
+							x.className = 'x'
+							x.style = 'color: red;position: absolute;top: 0px;left: 373px;'
+							x.addEventListener('click', function () {
+								h.remove()
+								a.style.visibility = 'visible'
 							})
+							h.appendChild(x)
+							let g = document.getElementById('friendsWindow-window').childNodes
+							let l = document.createElement('div')
+							l.innerText = `Select friend to play with.`
+							h.appendChild(l)
+							for (let i = 0; i < g.length; i++) {
+								let k = g[i].cloneNode(true)
+								h.appendChild(k)
+
+								$("#crownClickerMultiplayer-window").children().each(function (i, e) {
+									for (let i = 0; i < e.childNodes.length; i++) {
+										if (e.childNodes[i].className === 'ugly-button') {
+											e.childNodes[i].remove()
+										}
+									}
+								})
+								k.addEventListener('click', function () {
+									let friendId = k.id
+									if (!pendingRequest && document.getElementById('pendingRequest-window') == null) {
+										if (ws !== undefined && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING && ws.readyState !== WebSocket.CONNECTING) {
+											let q = document.createElement('div')
+											allowGameInitation = true
+											gameWasCanceled = false
+											h.style.visibility = 'hidden'
+											a.style.visibility = 'hidden'
+											q.innerHTML = (`<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: black;width: 331px;">Pending Request<div id="cancelPendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Cancel</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 11px;color: black;">Sending Request...</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`)
+											document.getElementsByClassName('relative')[0].appendChild(q)
+											currentlyPlaying = k.id
+											let cancel = document.getElementById('cancelPendingRequest')
+											cancel.addEventListener('click', function () {
+												q.remove()
+												gameWasCanceled = true
+												pendingRequest = false
+												currentlyPlaying = ''
+												allowGameInitation = false
+											})
+											sendMessage('multiplayer', `multiplayer:crownclicker:${friendId}:${ownid}`)
+										} else {
+											if (document.getElementById('websocketNotReadyWarning') == null) {
+												let j = document.createElement('div')
+												j.className = 'notification classic';
+												j.id = 'websocketNotReadyWarning'
+												j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+												document.getElementsByClassName('relative')[0].appendChild(j)
+												let x = document.createElement('div')
+												x.innerHTML = 'Ⓧ'
+												x.className = 'x'
+												j.appendChild(x)
+												let k = document.createElement('div')
+												k.className = 'title'
+												k.innerText = 'ERROR:'
+												j.appendChild(k)
+												let p = document.createElement('div')
+												p.className = 'text'
+												p.innerText = 'Please connect to the websocket first before attempting to play a multiplayer game.'
+												j.appendChild(p)
+												x.addEventListener('click', () => {
+													j.remove()
+												})
+												debug('Websocket is not ready.')
+											}
+										}
+									} else {
+										if (pendingRequest) {
+											console.log('You already have a pending request.')
+										}
+									}
+								})
+							}
+						} else {
+							let w = document.getElementById('crownClickerMultiplayer-window')
+							if (w.style.visibility == 'hidden') {
+								hideWindows('crownmul')
+								w.style.visibility = 'visible'
+							} else {
+								w.style.visibility = 'hidden'
+							}
 						}
 					})
 					let g = document.createElement('div')
@@ -959,67 +1206,78 @@ function buttonClicked(object, num) {
 					g.style = 'margin-top: 10px;margin-bottom: 10px;'
 					b.appendChild(g)
 					g.addEventListener('click', function () {
-						let h = document.createElement('div')
-						h.id = 'crownClickerLeaderboardWindow-window'
-						h.className = 'dialog';
-						h.style.visibility = 'visible'
-						h.style.height = '400px'
-						settingsLeft = ($(window).width() / 2).toString();
-						settingsTop = (($(window).height() / 2) - 200).toString();
-						h.style.top = `${settingsTop}px`
-						h.style.left = `${settingsLeft}px`
-						a.style.visibility = 'hidden'
-						document.getElementsByClassName('relative')[0].appendChild(h)
-						h.innerText = 'Crownclicker Leaderboard'
-						for (let j = 1; j < 11; j++) {
-							let i = document.createElement('a')
-							i.id = `rank_${j}`
-							i.innerText = '-'
-							i.style = 'background-color: black;color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
-							h.appendChild(i)
-						}
-						let j = document.createElement('div')
-						j.className = 'ugly-button'
-						j.innerText = 'Refresh Leaderboard'
-						j.id = 'refreshLeaderboard-crownClicker'
-						j.style = 'margin-top: 10px;margin-bottom: 10px;top: 363px;position: absolute;width: 127px;'
-						h.appendChild(j)
-						j.addEventListener('click', function () {
-							j.innerText = 'Refreshing...'
-							j.style.color = 'orange'
-							sendMessage('get leaderboard data', 'crownClickerLeaderboard')
-						})
-						let i = document.createElement('div')
-						i.className = 'ugly-button'
-						i.innerText = 'Submit Highscore'
-						i.id = 'submitHighscore-crownClicker'
-						i.style = 'margin-top: 10px;margin-bottom: 10px;width: 108px;position: absolute;top: 363px;left: 281px;'
-						h.appendChild(i)
-						i.addEventListener('click', function () {
-							if (MPP.client.user._id) {
-								i.innerText = 'Submitting...'
-								i.style.color = 'orange'
-								sendMessage('update leaderboards', `crownclickerscore:${cursorClickerScore}:${MPP.client.user._id}`)
-							} else {
-								console.log("Couldn't grab playerId.")
+						if (document.getElementById('crownClickerLeaderboardWindow-window') == null) {
+							let h = document.createElement('div')
+							h.id = 'crownClickerLeaderboardWindow-window'
+							hideWindows('crownLeader')
+							h.className = 'dialog';
+							h.style.visibility = 'visible'
+							h.style.height = '400px'
+							settingsLeft = ($(window).width() / 2).toString();
+							settingsTop = (($(window).height() / 2) - 200).toString();
+							h.style.top = `${settingsTop}px`
+							h.style.left = `${settingsLeft}px`
+							a.style.visibility = 'hidden'
+							document.getElementsByClassName('relative')[0].appendChild(h)
+							h.innerText = 'Crownclicker Leaderboard'
+							for (let j = 1; j < 11; j++) {
+								let i = document.createElement('a')
+								i.id = `rank_${j}`
+								i.innerText = '-'
+								i.style = 'background-color: black;color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
+								h.appendChild(i)
 							}
-						})
-						let k = document.createElement('div')
-						h.appendChild(k)
-						k.innerHTML = '<img width="25" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 14px;left: 362px;">'
-						let x = document.createElement('a')
-						x.innerHTML = 'Ⓧ'
-						x.className = 'x'
-						x.style = 'color: red;position: absolute;top: 0px;left: 389px;'
-						x.addEventListener('click', function () {
-							h.remove()
-							a.style.visibility = 'visible'
-						})
-						h.appendChild(x)
-						let l = document.createElement('a')
-						l.innerText = `Your highscore: ${cursorClickerScore}`
-						h.appendChild(l)
-						sendMessage('get leaderboard data', 'crownClickerLeaderboard')
+							let j = document.createElement('div')
+							j.className = 'ugly-button'
+							j.innerText = 'Refresh Leaderboard'
+							j.id = 'refreshLeaderboard-crownClicker'
+							j.style = 'margin-top: 10px;margin-bottom: 10px;top: 363px;position: absolute;width: 127px;'
+							h.appendChild(j)
+							j.addEventListener('click', function () {
+								j.innerText = 'Refreshing...'
+								j.style.color = 'orange'
+								sendMessage('get leaderboard data', 'crownClickerLeaderboard')
+							})
+							let i = document.createElement('div')
+							i.className = 'ugly-button'
+							i.innerText = 'Submit Highscore'
+							i.id = 'submitHighscore-crownClicker'
+							i.style = 'margin-top: 10px;margin-bottom: 10px;width: 108px;position: absolute;top: 363px;left: 281px;'
+							h.appendChild(i)
+							i.addEventListener('click', function () {
+								if (MPP.client.user._id) {
+									i.innerText = 'Submitting...'
+									i.style.color = 'orange'
+									sendMessage('update leaderboards', `crownclickerscore:${cursorClickerScore}:${MPP.client.user._id}`)
+								} else {
+									console.log("Couldn't grab playerId.")
+								}
+							})
+							let k = document.createElement('div')
+							h.appendChild(k)
+							k.innerHTML = '<img width="25" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 14px;left: 362px;">'
+							let x = document.createElement('a')
+							x.innerHTML = 'Ⓧ'
+							x.className = 'x'
+							x.style = 'color: red;position: absolute;top: 0px;left: 389px;'
+							x.addEventListener('click', function () {
+								h.remove()
+								a.style.visibility = 'visible'
+							})
+							h.appendChild(x)
+							let l = document.createElement('a')
+							l.innerText = `Your highscore: ${cursorClickerScore}`
+							h.appendChild(l)
+							sendMessage('get leaderboard data', 'crownClickerLeaderboard')
+						} else {
+							let w = document.getElementById('crownClickerLeaderboardWindow-window')
+							if (w.style.visibility == 'hidden') {
+								hideWindows('crownLeader')
+								w.style.visibility = 'visible'
+							} else {
+								w.style.visibility = 'hidden'
+							}
+						}
 					})
 
 				} else {
@@ -1033,6 +1291,7 @@ function buttonClicked(object, num) {
 			if (i.style.visibility === 'visible') {
 				i.style.visibility = 'hidden'
 			} else if (i.style.visibility === 'hidden' && inGame === false) {
+				hideWindows('mulplaty')
 				i.style.visibility = 'visible'
 				$('a').find('legend').text(`HIGHSCORE: ${cursorClickerScore}`)
 			}
@@ -1515,7 +1774,6 @@ function updateFriendStatus(id, status) {
 // ALLOWS SENDING MESSAGE THROUGH WEBSOCKET:
 let verifyRoom
 let verifyCode
-let authenticationStatus
 let responseReceived = false
 function sendMessage(param, msg, playerid, msgid) {
 	if (ws === undefined) {
@@ -1560,42 +1818,61 @@ function sendMessage(param, msg, playerid, msgid) {
 		clickBuffer()
 
 		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`#${ownid}`);
-			ws.send(`uDATAid-${ownid}`);
+			ws.send(`mSETUP-${ownid}`);
+			debug(`mSETUP-${ownid}`)
 		} else {
 			ws.addEventListener('open', function (e) {
 				ws.send(`#${ownid}`);
-				ws.send(`uDATAid-${ownid}`)
+				ws.send(`mSETUP-${ownid}`);
+				debug(`mSETUP-${ownid}`)
 			})
 		}
 	}
 	if (param === 'send message') {
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
+			debug(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
 		} else {
 			ws.addEventListener('open', function (e) {
 				ws.send(`#${ownid}`);
 				ws.send(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
+				debug(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
 			})
 		}
 	}
 	if (param === 'update player') {
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(`^uDATAid-${ownid}`);
+			debug(`^uDATAid-${ownid}`)
 		} else {
 			ws.addEventListener('open', function (e) {
 				ws.send(`#${ownid}`);
 				ws.send(`^uDATAid-${ownid}`);
+				debug(`^uDATAid-${ownid}`)
 			})
 		}
 	}
 	if (param === 'join room') {
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(`join room-${playerid}-${ownid}`);
+			debug(`join room-${playerid}-${ownid}`)
 		} else {
 			ws.addEventListener('open', function (e) {
 				ws.send(`#${ownid}`);
 				ws.send(`join room-${playerid}-${ownid}`);
+				debug(`join room-${playerid}-${ownid}`)
+			})
+		}
+	}
+	if (param === 'version check') {
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(`version-${msg}`)
+			debug(`version-${msg}`)
+		} else {
+			ws.addEventListener('open', function (e) {
+				ws.send(`#${ownid}`);
+				ws.send(`version-${msg}`)
+				debug(`version-${msg}`)
 			})
 		}
 	}
@@ -1604,16 +1881,19 @@ function sendMessage(param, msg, playerid, msgid) {
 			for (let i = 0; i < updateName.length; i++) {
 				if (updateName[i].startsWith('!')) {
 					ws.send(`updatename:${updateName[i]}`);
+					debug(`updatename:${updateName[i]}`)
 				}
 			}
 		} else {
 			ws.addEventListener('open', function (e) {
+				ws.send(`#${ownid}`);
 				if (ws.readyState === 0) {
 					ws.addEventListener('open', function (e) {
 						for (let i = 0; i < updateName.length; i++) {
 							if (updateName[i].startsWith('!')) {
 								let name = updateName[i].substr(1)
 								ws.send(`updatename:${updateName[i]}`);
+								debug(`updatename:${updateName[i]}`)
 							}
 						}
 					})
@@ -1622,6 +1902,7 @@ function sendMessage(param, msg, playerid, msgid) {
 						if (updateName[i].startsWith('!')) {
 							let name = updateName[i].substr(1)
 							ws.send(`updatename:${updateName[i]}`);
+							debug(`updatename:${updateName[i]}`)
 						}
 					}
 				}
@@ -1632,6 +1913,7 @@ function sendMessage(param, msg, playerid, msgid) {
 		if (ws.readyState === WebSocket.OPEN) {
 			if (msg !== ownid) {
 				ws.send(`script user:${msg}`);
+				debug(`script user:${msg}`)
 			}
 		} else {
 			ws.addEventListener('open', function (e) {
@@ -1640,12 +1922,16 @@ function sendMessage(param, msg, playerid, msgid) {
 						if (msg !== ownid) {
 							ws.send(`#${ownid}`);
 							ws.send(`script user:${msg}`);
+							debug(`#${ownid}`)
+							debug(`script user:${msg}`)
 						}
 					})
 				} else {
 					if (msg !== ownid) {
 						ws.send(`#${ownid}`);
 						ws.send(`script user:${msg}`);
+						debug(`#${ownid}`)
+						debug(`script user:${msg}`)
 					}
 				}
 			})
@@ -1655,6 +1941,7 @@ function sendMessage(param, msg, playerid, msgid) {
 		if (ws.readyState === WebSocket.OPEN) {
 			if (msg !== ownid) {
 				ws.send(`friendname:${msg}:${playerid}`);
+				debug(`friendname:${msg}:${playerid}`)
 			}
 		} else {
 			ws.addEventListener('open', function (e) {
@@ -1663,12 +1950,16 @@ function sendMessage(param, msg, playerid, msgid) {
 						if (msg !== ownid) {
 							ws.send(`#${ownid}`);
 							ws.send(`friendname:${msg}:${playerid}`);
+							debug(`#${ownid}`)
+							debug(`friendname:${msg}:${playerid}`)
 						}
 					})
 				} else {
 					if (msg !== ownid) {
 						ws.send(`#${ownid}`);
 						ws.send(`friendname:${msg}:${playerid}`);
+						debug(`#${ownid}`)
+						debug(`friendname:${msg}:${playerid}`)
 					}
 				}
 			})
@@ -1677,16 +1968,21 @@ function sendMessage(param, msg, playerid, msgid) {
 	if (param === 'get leaderboard data') {
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(`requestleaderboard:${msg}`);
+			debug(`requestleaderboard:${msg}`)
 		} else {
 			ws.addEventListener('open', function (e) {
 				if (ws.readyState === 0) {
 					ws.addEventListener('open', function (e) {
 						ws.send(`#${ownid}`);
 						ws.send(`requestleaderboard:${msg}`);
+						debug(`#${ownid}`)
+						debug(`requestleaderboard:${msg}`)
 					})
 				} else {
 					ws.send(`#${ownid}`);
 					ws.send(`requestleaderboard:${msg}`);
+					debug(`#${ownid}`)
+					debug(`requestleaderboard:${msg}`)
 				}
 			})
 		}
@@ -1694,6 +1990,7 @@ function sendMessage(param, msg, playerid, msgid) {
 	if (param === 'multiplayer') {
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(`${msg}`);
+			debug(`${msg}`)
 			pendingRequest = true
 		} else {
 			ws.addEventListener('open', function (e) {
@@ -1701,11 +1998,15 @@ function sendMessage(param, msg, playerid, msgid) {
 					ws.addEventListener('open', function (e) {
 						ws.send(`#${ownid}`);
 						ws.send(`${msg}`);
+						debug(`#${ownid}`)
+						debug(`${msg}`)
 						pendingRequest = true
 					})
 				} else {
 					ws.send(`#${ownid}`);
 					ws.send(`${msg}`);
+					debug(`#${ownid}`)
+					debug(`${msg}`)
 					pendingRequest = true
 				}
 			})
@@ -1715,6 +2016,7 @@ function sendMessage(param, msg, playerid, msgid) {
 		let f = document.getElementById('submitHighscore-crownClicker')
 		if (ws.readyState === WebSocket.OPEN) {
 			ws.send(`${msg}`);
+			debug(`${msg}`)
 			if (f) {
 				f.innerText = 'Submitted!'
 				f.style.color = 'lime'
@@ -1729,6 +2031,8 @@ function sendMessage(param, msg, playerid, msgid) {
 					ws.addEventListener('open', function (e) {
 						ws.send(`#${ownid}`);
 						ws.send(`${msg}`);
+						debug(`#${ownid}`)
+						debug(`${msg}`)
 						if (f) {
 							f.innerText = 'Submitted!'
 							f.style.color = 'lime'
@@ -1741,6 +2045,8 @@ function sendMessage(param, msg, playerid, msgid) {
 				} else {
 					ws.send(`#${ownid}`);
 					ws.send(`${msg}`);
+					debug(`#${ownid}`)
+					debug(`${msg}`)
 					if (f) {
 						f.innerText = 'Submitted!'
 						f.style.color = 'lime'
@@ -1757,38 +2063,131 @@ function sendMessage(param, msg, playerid, msgid) {
 // -- //
 
 // -- //
+// SHUTDOWN MULTIPLAYER GAME
+function clearAllGameStatus() {
+	playingMultiplayerCrownClicker = false
+	pendingRequest = false
+	alreadySetup = false
+	allowGameInitation = false
+	inGame = false
+	currentlyPlaying = ''
+	gameKey = ''
+	multiplayerGameStatus = false
+	multiplayerCrownAmmount = 0
+	multiplayerScore = 0
+}
+//
+
+// -- //
 // ADDS LISTENERS TO WEBSOCKET CONNECTIONS
 function addListener() {
 	ws.addEventListener('message', function (e) {
 		responseReceived = true
+		let i = MPP.client.ppl
 		let ownName
 		let friendsloc
-		let nameloc = document.getElementsByClassName('name me')
-		let ownerloc = document.getElementsByClassName('name me owner')
-		if (nameloc === undefined || ownerloc === undefined) { return }
-		if (nameloc !== undefined && nameloc !== null) { ownName = nameloc[0].innerText } else { ownName = ownerloc[0].innerText }
+		for (const property in i) {
+			let j = Object.getOwnPropertyDescriptor(i[property], '_id')
+			if (j) {
+				if (j.value === ownid) {
+					let p = i[property]
+					ownName = p.name
+				}
+			}
+		}
+		// if(!ownName){
+		// 	let nameloc = document.getElementsByClassName('name me')
+		// 	let ownerloc = document.getElementsByClassName('name me owner')
+		// 	if (nameloc === undefined && ownerloc === undefined) { return }
+		// 	if (nameloc !== undefined && nameloc !== null) { ownName = nameloc[0].innerText } else { ownName = ownerloc[0].innerText }
+		// }
 		if (friends === undefined) { } else {
 			friendsloc = (friends.join('*'))
 			friendsloc = `*${friendsloc}`
 		}
-		if (e.data === 'ID SAVED') {
-			ws.send(`uDATAname-${ownName}`)
-		}
-		if (e.data === 'NAME AND IP SAVED') {
-			ws.send(`uDATAfriends-${friendsloc}`)
-		}
-		if (e.data === 'FRIENDS SAVED') {
-			ws.send(`uDATAcolor-${owncolor}`)
+		if (e.data.startsWith('version')) {
+			let status = e.data.split('-')[1]
+			let version = e.data.split('-')[2]
+			if (status === 'outdated') {
+				let j = document.createElement('div')
+				j.className = 'notification classic';
+				j.id = 'updateScriptPopup'
+				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+				document.getElementsByClassName('relative')[0].appendChild(j)
+				let x = document.createElement('div')
+				x.innerHTML = 'Ⓧ'
+				x.className = 'x'
+				j.appendChild(x)
+				let k = document.createElement('div')
+				k.className = 'title'
+				k.innerText = 'YOUR RUNNING AN OUTDATED VERSION OF THE SCRIPT:'
+				j.appendChild(k)
+				let p = document.createElement('div')
+				p.className = 'text'
+				p.innerText = `Please go to the link below and use the new script in your tampermonkey window. Newest version: ${version}`
+				j.appendChild(p)
+				let o = document.createElement('a')
+				o.innerText = scriptWebsite
+				o.style = 'color: blue;font-size: 19px;'
+				o.href = scriptWebsite
+				o.target = '_blank'
+				j.appendChild(o)
+				x.addEventListener('click', () => {
+					j.remove()
+				})
+				let updatesButton = document.getElementById('checkUpdate-btn')
+				if (updatesButton !== null) {
+					updatesButton.style = 'color: red; width: 112px;'
+					updatesButton.innerText = 'Outdated!'
+					gotVersionNo = true
+					setTimeout(function () {
+						updatesButton.style = 'color: white; width: 112px;'
+						updatesButton.innerText = 'Check for updates'
+					}, 3000)
+				}
+			} else {
+				let j = document.createElement('div')
+				j.className = 'notification classic';
+				j.id = 'updateScriptPopup'
+				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+				document.getElementsByClassName('relative')[0].appendChild(j)
+				let x = document.createElement('div')
+				x.innerHTML = 'Ⓧ'
+				x.className = 'x'
+				j.appendChild(x)
+				let k = document.createElement('div')
+				k.className = 'title'
+				k.innerText = 'LATEST VERSION CONFIRMED.'
+				j.appendChild(k)
+				let p = document.createElement('div')
+				p.className = 'text'
+				p.innerText = 'Your running the latest version of this script!'
+				j.appendChild(p)
+				x.addEventListener('click', () => {
+					j.remove()
+				})
+				let updatesButton = document.getElementById('checkUpdate-btn')
+				if (updatesButton !== null) {
+					updatesButton.style = 'color: lime; width: 112px;'
+					updatesButton.innerText = 'Latest!'
+					gotVersionNo = true
+					setTimeout(function () {
+						updatesButton.style = 'color: white; width: 112px;'
+						updatesButton.innerText = 'Check for updates'
+					}, 3000)
+				}
+			}
 		}
 
 		if (e.data.startsWith('AUTHENTICATION REQUEST')) {
 			ws.send(`mSETUP-${ownid}`);
+			debug(`mSETUP-${ownid}`)
 			setTimeout(function () {
 				if (authenticationStatus == undefined || authenticationStatus == null) {
 					console.log('TIMEOUT')
+					authenticationStatus = false
 					document.cookie = (`&verificationStatus=false; expires=${keepCookie}`)
 					timeout()
-					client.stop();
 				}
 			}, 30000);
 		}
@@ -1805,8 +2204,15 @@ function addListener() {
 				var client = new Client('wss://www.multiplayerpiano.com:443');
 				client.start();
 				client.setChannel(verifyRoom);
+				setTimeout(function () {
+					if (!authenticationStatus) {
+						timeout()
+						client.stop()
+					}
+				}, 30000)
 				client.on('ch', () => {
 					console.log('Sending Verification Code.')
+					debug('Sending Verification Code.')
 					client.sendArray([{ m: 'a', message: `${verifyCode}` }]);
 					client.on('a', msg => {
 						if (msg.a.toString().toLowerCase().startsWith('user authenticated.')) {
@@ -1838,15 +2244,22 @@ function addListener() {
 			if (z) { z.innerText = 'Verified', z.style.color = 'lime' }
 			if (client !== undefined) { client.stop() };
 		}
+
 		if (e.data === '^ID SAVED') {
 			ws.send(`^uDATAname-${ownName}`)
+			debug(`^uDATAname-${ownName}`)
 		}
 		if (e.data === '^NAME AND IP SAVED') {
 			ws.send(`^uDATAfriends-${friendsloc}`)
+			debug(`^uDATAfriends-${friendsloc}`)
 		}
 		if (e.data === '^FRIENDS SAVED') {
 			ws.send(`^uDATAcolor-${owncolor}`)
+			debug(`^uDATAcolor-${owncolor}`)
 		}
+
+
+
 		if (e.data.includes('Online:')) {
 			let temp = e.data.split(' ')
 			let tempfriend = temp[1]
@@ -1907,6 +2320,28 @@ function addListener() {
 			let data = e.data.split(' ')
 			messageStatus('Saved', data[1])
 		}
+		if (e.data.startsWith('warn')) {
+			let announcement = e.data.split(':')[1]
+			let j = document.createElement('div')
+			j.className = 'notification classic';
+			j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+			document.getElementsByClassName('relative')[0].appendChild(j)
+			let x = document.createElement('div')
+			x.innerHTML = 'Ⓧ'
+			x.className = 'x'
+			j.appendChild(x)
+			let k = document.createElement('div')
+			k.className = 'title'
+			k.innerText = 'WARNING:'
+			j.appendChild(k)
+			let p = document.createElement('div')
+			p.className = 'text'
+			p.innerText = announcement
+			j.appendChild(p)
+			x.addEventListener('click', () => {
+				j.remove()
+			})
+		}
 		if (e.data.startsWith('<MSA>')) {
 			let announcement = e.data.split(':')
 			announcement = announcement[1]
@@ -1939,12 +2374,15 @@ function addListener() {
 				if (friends.includes(reqid)) {
 					console.log('ok its good its in friends')
 					ws.send(`final-${window.MPP.client.channel._id}-${reqid}-${ownid}`)
+					debug(`final-${window.MPP.client.channel._id}-${reqid}-${ownid}`)
 				} else {
 					console.log('not in friends list :(')
 					ws.send(`request denied:${reqid}:This person does not have you friended.`)
+					debug(`request denied:${reqid}:This person does not have you friended.`)
 				}
 			} else {
 				ws.send(`request denied:${reqid}:This person does allow friends to join their rooms.`)
+				debug(`request denied:${reqid}:This person does allow friends to join their rooms.`)
 			}
 		}
 		if (e.data.startsWith('request accepted')) {
@@ -2040,6 +2478,7 @@ function addListener() {
 				let reqid = e.data.split(':')[2]
 				if (!friends.includes(reqid)) {
 					ws.send(`mulreqfail:${game}:Player is not on friends list.:${reqid}`)
+					debug(`mulreqfail:${game}:Player is not on friends list.:${reqid}`)
 				} else {
 					if (document.getElementById('multiplayerGameRequest') == null) {
 						let j = document.createElement('div')
@@ -2062,40 +2501,45 @@ function addListener() {
 						let e = document.createElement('div')
 						e.className = 'ugly-button'
 						e.innerText = 'Accept'
-						e.style.color = 'green'
 						e.id = 'acceptMultiplayerRequest'
 						e.style = 'margin-top: 10px;margin-bottom: 10px;'
+						e.style.color = 'lime'
 						j.appendChild(e)
 						let o = document.createElement('div')
 						o.className = 'ugly-button'
 						o.innerText = 'Deny'
-						o.style.color = 'red'
 						o.id = 'denyMultiplayerRequest'
 						o.style = 'margin-top: 10px;margin-bottom: 10px;'
+						o.style.color = 'red'
 						j.appendChild(o)
 						e.addEventListener('click', function () {
-							currentlyPlaying=reqid
+							j.remove()
+							currentlyPlaying = reqid
 							ws.send(`initiateGame:crownclicker:${reqid}:${ownid}`)
+							debug(`initiateGame:crownclicker:${reqid}:${ownid}`)
 							allowGameInitation = true
 							setTimeout(function () {
 								if (allowGameInitation) {
 									allowGameInitation = false
 									console.log('Initiation for multiplayer games has closed.')
 								}
-							},10000)
+							}, 10000)
 						})
 						o.addEventListener('click', function () {
 							j.remove()
 							ws.send(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
+							debug(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
 						})
 						x.addEventListener('click', () => {
 							j.remove()
 							ws.send(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
+							debug(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
 						})
 					}
 				}
 			} else {
 				ws.send(`mulreqfail:${game}:Player does not accept game requests.:${reqid}`)
+				debug(`mulreqfail:${game}:Player does not accept game requests.:${reqid}`)
 			}
 		}
 		if (e.data.startsWith('mulreqfail:')) {
@@ -2106,7 +2550,7 @@ function addListener() {
 				if (friends.includes(reqid)) {
 					pendingRequest = false
 					currentlyPlaying = ''
-					allowGameInitation=false
+					allowGameInitation = false
 					let requestWindow = document.getElementById('pendingRequest-window')
 					if (requestWindow !== null) {
 						clearInterval(timerInterval)
@@ -2151,27 +2595,47 @@ function addListener() {
 		}
 		if (e.data.startsWith('beginmultiplayer:')) {
 			if (allowGameInitation) {
-				let gameKey = e.data.split(':')[2]
+				console.log(gameKey)
+				gameKey = e.data.split(':')[2]
 				let game = e.data.split(':')[1]
 				let friendId = e.data.split(':')[3]
 				if (friends.includes(friendId)) {
 					if (currentlyPlaying === friendId) {
-						if(game==='crownclicker'){
-						playingMultiplayerCrownClicker = true
-						inGame=true
-						allowGameInitation=false
+						if (game === 'crownclicker') {
+							let tim = document.getElementById('pendingRequest-window')
+							let mulcrown = document.getElementById('crownClickerMultiplayer-window')
+							let friend = document.getElementById('friendsWindow-window')
+							if (tim !== null) {
+								tim.remove()
+							}
+							if (mulcrown !== null) {
+								mulcrown.style.visibility = 'hidden'
+							}
+							if (friend !== null) {
+								friend.style.visibility = 'hidden'
+							}
+							playingMultiplayerCrownClicker = true
+							inGame = true
+							allowGameInitation = false
+							multiplayerGameStatus = true
 						}
 					} else {
 						console.warn('A multiplayer initiate request was received, however there was not any pending request for this user.')
 						ws.send('initiatefailed:There is no pending request for this user.')
+						debug('initiatefailed:There is no pending request for this user.')
+						debug('A multiplayer initiate request was received, however there was not any pending request for this user.')
 					}
 				} else {
 					console.warn('A multiplayer initiate request was received, however The user was not on the friends list, how?')
 					ws.send('initiatefailed:The playerid given is not on the friends list')
+					debug('initiatefailed:The playerid given is not on the friends list')
+					debug('A multiplayer initiate request was received, however The user was not on the friends list, how?')
 				}
 			} else {
 				console.warn('A multiplayer initiate request was received, however The status to play was false.')
 				ws.send('initiatefailed:A multiplayer initiate request was received, however The status to play was false.')
+				debug('initiatefailed:A multiplayer initiate request was received, however The status to play was false.')
+				debug('A multiplayer initiate request was received, however The status to play was false.')
 			}
 		}
 		if (e.data.startsWith('confirmedsent:')) {
@@ -2185,7 +2649,7 @@ function addListener() {
 					gameWasCanceled = true
 					requestWindow.remove()
 					currentlyPlaying = ''
-					allowGameInitation=false
+					allowGameInitation = false
 				})
 				if (requestWindow !== null) {
 					let time = 30
@@ -2204,14 +2668,14 @@ function addListener() {
 								pendingRequest = false
 								requestWindow.remove()
 								currentlyPlaying = ''
-								allowGameInitation=false
+								allowGameInitation = false
 							}
 						} else {
 							clearInterval(timerInterval)
 							pendingRequest = false
 							requestWindow.remove()
 							currentlyPlaying = ''
-							allowGameInitation=false
+							allowGameInitation = false
 						}
 					}, 1000)
 				}
@@ -2223,44 +2687,244 @@ function addListener() {
 				switch (command) {
 					case 'setup':
 						if (!alreadySetup) {
+							let i = document.getElementsByClassName('relative')[0]
+
 							let ownscore = document.createElement('div')
+							ownscore.style = 'top: 0px;left: 13%;position: fixed;font-weight: bold;font-size: 100px;color: lime;'
+							ownscore.innerText = 'Score: 0'
+							ownscore.id = 'ownscoreScoreMultiplayerCrownClicker'
+							i.appendChild(ownscore)
+
+
 							let friendscore = document.createElement('div')
-							ownscore.innerHTML = '<div id="ownCrownClickerScoreDIV"><div id="ownCrownClickerScore" style="top: 0px;left: 13%;position: fixed;font-weight: bold;font-size: 100px;color: white;">Score: 0<div id="timeText"><div id="ownCrownClickerMultiplayerTimer" style="top: 0px;position: absolute;font-weight: bold;font-size: 19px;color: white;left: 38%;">Timer: 30</div></div></div></div>'
-							friendscore.innerHTML = '<div id="friendCrownClickerScoreDIV"><div id="friendCrownClickerScore" style="top: 0px;left: 64%;position: fixed;font-weight: bold;font-size: 100px;color: white;">Score: 0<div id="timeText"><div id="friendCrownClickerMultiplayerTimer" style="top: 0px;position: absolute;font-weight: bold;font-size: 19px;color: white;left: 38%;">Timer: 30</div></div></div></div>'
-document.getElementsByClassName('relative')[0].appendChild(ownscore)
-document.getElementsByClassName('relative')[0].appendChild(friendscore)
+							friendscore.style = 'top: 0px;left: 63%;position: fixed;font-weight: bold;font-size: 100px;color: red;'
+							friendscore.innerText = 'Score: 0'
+							friendscore.id = 'friendScoreMultiplayerCrownClicker'
+							i.appendChild(friendscore)
+
+							let globalTimer = document.createElement('div')
+							globalTimer.id = 'multiplayerGlobalTimer'
+							globalTimer.innerText = 'Time: 30'
+							globalTimer.style = 'top: 4%;left: 43%;position: fixed;font-weight: bold;font-size: 47px;color: white;'
+							i.appendChild(globalTimer)
+
 							ws.send(`ingame:crownclicker:ROOM SETUP:${currentlyPlaying}:${ownid}`)
-							alreadySetup=true
-						}else{
-							console.log('user is already setup')
+							debug(`ingame:crownclicker:ROOM SETUP:${currentlyPlaying}:${ownid}`)
+							alreadySetup = true
+						} else {
+							ws.send(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Server requested to setup timers multiple times.`)
+							debug(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Server requested to setup timers multiple times.`)
 						}
 						break;
 					case 'time':
-						let time=e.data.split(':')[2]
-						let ownTimer = document.getElementById('ownCrownClickerMultiplayerTimer')
-						let friendTimer = document.getElementById('friendCrownClickerMultiplayerTimer')
-						if(friendTimer!==null && ownTimer!==null){
-							ownTimer.innerText=`Timer: ${time}`
-							friendTimer.innerText=`Timer: ${time}`
-						}else{
+						let tempTime = e.data.split(':')[2]
+						let globalTimer = document.getElementById('multiplayerGlobalTimer')
+						if (globalTimer !== null) {
+							globalTimer.innerText = `Time: ${tempTime}`
+						} else {
 							ws.send(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Could not generate timers.`)
+							debug(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Could not generate timers.`)
 						}
 						break;
 					case 'score':
-						let ownscore = document.getElementById('ownCrownClickerScore').innerText.split('T')[0].split(' ')[1]
-						let friendscore = document.getElementById('friendCrownClickerScore').innerText.split('T')[0].split(' ')[1]
-						ws.send(`ingame:crownclicker:SCORE:${ownscore}:${friendscore}`)
+						$('.crownClick').remove()
+						multiplayerGameStatus = false
+						let ownscore = document.getElementById('ownscoreScoreMultiplayerCrownClicker').innerText.split(' ')[1]
+						let friendscore = document.getElementById('friendScoreMultiplayerCrownClicker').innerText.split(' ')[1]
+						setTimeout(function () {
+							ws.send(`ingame:crownclicker:SCORE:${ownscore}:${friendscore}`)
+							debug(`ingame:crownclicker:SCORE:${ownscore}:${friendscore}`)
+						}, 1000)
+
 						break;
 
+					case 'friendscore':
+						let score = e.data.split(':')[2]
+						let tempFriendscore = document.getElementById('friendScoreMultiplayerCrownClicker')
+						if (tempFriendscore !== null) {
+							tempFriendscore.innerText = `Score: ${score}`
+						}
+						break;
 
+					case 'crownpos':
+						if (multiplayerCrownAmmount < 8 && multiplayerGameStatus === true) {
+							let randomX = (Number(e.data.split(':')[2]) * ($(window).width())).toString()
+							let randomY = (Number(e.data.split(':')[3]) * ($(window).height())).toString()
+							let crown = document.createElement('a')
+							crown.innerHTML = '<img width="50" src="https://www.multiplayerpiano.com/crown.png" style="-webkit-user-drag: none;">'
+							crown.style = `position: fixed;top: ${randomY}px;left: ${randomX}px;`
+							document.getElementsByClassName('relative')[0].appendChild(crown)
+							crown.className = 'crownClick'
+							crown.addEventListener('click', function () {
+								crown.remove()
+								multiplayerCrownAmmount--
+								multiplayerScore++
+								if (document.getElementById('ownscoreScoreMultiplayerCrownClicker') !== null) {
+									document.getElementById('ownscoreScoreMultiplayerCrownClicker').innerText = `Score: ${multiplayerScore.toString()}`
+								}
+								ws.send(`ingame:crownclicker:CROWNCLICKED:${multiplayerScore.toString()}:${gameKey}`)
+							})
+							multiplayerCrownAmmount++
+						} else {
+							console.log('No more crown positions left')
+							debug('No more crown positions left')
+						}
+						break;
+					case 'cursorpos':
+
+						break;
+					case 'gameover':
+						$('.crownClick').remove()
+						let od = document.getElementById('ownscoreScoreMultiplayerCrownClicker')
+						let fd = document.getElementById('friendScoreMultiplayerCrownClicker')
+						let time = document.getElementById('multiplayerGlobalTimer')
+						if (od !== null && fd !== null) {
+							fd.remove()
+							od.remove()
+						}
+						time.remove()
+						let status = e.data.split(':')[2]
+						console.log(status)
+						if (status.length === 24) {
+							let winner = status
+							if (winner === ownid) {
+								let a = document.createElement('div')
+								a.innerText = `You have won the game!`
+								let sl = (($(window).width() / 2) - 300).toString();
+								let st = (($(window).height() / 2) - 90).toString();
+								a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
+								document.getElementsByClassName('relative')[0].appendChild(a)
+								clearAllGameStatus()
+								setTimeout(function () {
+									a.remove()
+								}, 5000)
+							} else {
+								let a = document.createElement('div')
+								a.innerText = `User, ${winner} has won the game!`
+								let sl = (($(window).width() / 2) - 300).toString();
+								let st = (($(window).height() / 2) - 90).toString();
+								a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
+								document.getElementsByClassName('relative')[0].appendChild(a)
+								clearAllGameStatus()
+								setTimeout(function () {
+									a.remove()
+								}, 5000)
+							}
+						} else {
+							let a = document.createElement('div')
+							a.innerText = 'There was a tie!'
+							let sl = (($(window).width() / 2) - 300).toString();
+							let st = (($(window).height() / 2) - 90).toString();
+							a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
+							document.getElementsByClassName('relative')[0].appendChild(a)
+							clearAllGameStatus()
+							setTimeout(function () {
+								a.remove()
+							}, 5000)
+						}
+					case 'shutdowngame':
+						let serverGameKey = e.data.split(':')[2]
+						let reason = e.data.split(':')[3]
+						if (gameKey === serverGameKey) {
+							$('.crownClick').remove()
+							multiplayerGameStatus = false
+							clearAllGameStatus()
+							let od = document.getElementById('ownscoreScoreMultiplayerCrownClicker')
+							let fd = document.getElementById('friendScoreMultiplayerCrownClicker')
+							let ti = document.getElementById('multiplayerGlobalTimer')
+							if (od !== null) {
+								fd.remove()
+								ti.remove()
+								od.remove()
+							} else {
+								console.log('Failed to remove multiplayer score DIV elements.')
+								debug('Failed to remove multiplayer score DIV elements.')
+							}
+							let j = document.createElement('div')
+							j.className = 'notification classic';
+							j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+							document.getElementsByClassName('relative')[0].appendChild(j)
+							let x = document.createElement('div')
+							x.innerHTML = 'Ⓧ'
+							x.className = 'x'
+							j.appendChild(x)
+							let k = document.createElement('div')
+							k.className = 'title'
+							k.innerText = 'MULTIPLAYER GAME SHUTDOWN.'
+							j.appendChild(k)
+							let p = document.createElement('div')
+							p.className = 'text'
+							p.innerText = `The game was shut down because "${reason}"`
+							j.appendChild(p)
+							x.addEventListener('click', () => {
+								j.remove()
+							})
+							setTimeout(function () {
+								j.remove()
+							}, 10000)
+						} else {
+							console.log('A game key was received to shutdown the server but the key was invalid.')
+							debug(`THE SERVER GIVEN GAME KEY ${gameKey}: THE GAME INVALID GAME KEY ${serverGameKey}`)
+							debug('A game key was received to shutdown the server but the key was invalid.')
+						}
+						break;
 				}
 			}
-			if (e.data.startsWith('shutdownGame:')) {
-alreadySetup=false
+		}
+
+		if (debuggingMode) {
+			let debugWindow = document.getElementById('debugWindow-window')
+			if (debugWindow !== null) {
+				let message = document.createElement('div')
+				message.style = 'background-color: black;color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
+				message.innerText = e.data
+				debugWindow.appendChild(message)
+			} else {
+				console.log('Failure to find debug Window.')
 			}
 		}
 		console.log(e.data)
 	});
+	ws.addEventListener('close', function (e) {
+		if (playingMultiplayerCrownClicker) {
+			clearAllGameStatus()
+			$('.crownClick').remove()
+			multiplayerGameStatus = false
+			let od = document.getElementById('ownscoreScoreMultiplayerCrownClicker')
+			let fd = document.getElementById('friendScoreMultiplayerCrownClicker')
+			let ti = document.getElementById('multiplayerGlobalTimer')
+			if (od !== null) {
+				fd.remove()
+				ti.remove()
+				od.remove()
+			} else {
+				console.log('Failed to remove multiplayer score DIV elements.')
+				debug('Failed to remove multiplayer score DIV elements.')
+			}
+			let j = document.createElement('div')
+			j.className = 'notification classic';
+			j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+			document.getElementsByClassName('relative')[0].appendChild(j)
+			let x = document.createElement('div')
+			x.innerHTML = 'Ⓧ'
+			x.className = 'x'
+			j.appendChild(x)
+			let k = document.createElement('div')
+			k.className = 'title'
+			k.innerText = 'MULTIPLAYER GAME SHUTDOWN.'
+			j.appendChild(k)
+			let p = document.createElement('div')
+			p.className = 'text'
+			p.innerText = `The game was shut down because you disconnected from the websocket.`
+			j.appendChild(p)
+			x.addEventListener('click', () => {
+				j.remove()
+			})
+			setTimeout(function () {
+				j.remove()
+			}, 10000)
+		}
+	})
 }
 // -- //
 
@@ -2741,7 +3405,6 @@ function addToPanel(playerid, p) {
 			addClick(friend, playerid, friend.p)
 		}
 	}
-	sendMessage('update names')
 }
 // -- //
 
@@ -2774,7 +3437,6 @@ function loadToPanel() {
 			console.log('Player Already in Window')
 		}
 	}
-	sendMessage('update names')
 }
 // -- //
 
@@ -2810,6 +3472,7 @@ let test
 	}, 1000);
 	setTimeout(() => {
 		test = document.getElementById('friendsWindow-window').childNodes
+		sendMessage('update names')
 	}, 3000);
 	// UPDATES CLIENT CONNECTION TO SERVER EVER 1 SECOND
 	window.setInterval(function () {
@@ -2948,15 +3611,48 @@ let test
 	for (let i = 0; i < submit.length; i++) {
 		if (submit[i].innerText === 'USER SET') {
 			submit[i].addEventListener('click', () => {
-				sendMessage('update player')
 				setTimeout(function () {
+					sendMessage('update player')
 					sendMessage('send friend names', 'null', ownid)
-				}, 1000)
+				}, 10000)
 			})
 		}
 	}
 	for (let i = 0; i < friends.length; i++) {
 		retrieveMessageNumber(friends[i])
+	}
+	let soundWarning = document.getElementById('sound-warning')
+	if (disablePopups) {
+		if (soundWarning !== null) {
+			soundWarning.click()
+		}
+		let observer = new MutationObserver((mutations) => {
+			mutations.forEach((mutation) => {
+				if (!mutation.addedNodes) return
+				for (let i = 0; i < mutation.addedNodes.length; i++) {
+					let node = mutation.addedNodes[i]
+					if (node.id === 'Notification-MIDI-Connections') {
+						$('#Notification-MIDI-Connections').remove()
+						setTimeout(function () {
+							observer.disconnect()
+						}, 1000)
+					}
+				}
+			})
+		})
+
+		observer.observe(document.body, {
+			childList: true
+			, subtree: true
+			, attributes: false
+			, characterData: false
+		})
+		setTimeout(function () {
+			for (let i = 0; i < 2; i++) {
+				$("#crownClickerMultiplayer-window").children().each(function (i, e) { for (let i = 0; i < e.childNodes.length; i++) { if (e.childNodes[i].className === 'ugly-button') { e.childNodes[i].remove() } } })
+			}
+			observer.disconnect()
+		}, 10000)
 	}
 })();
 // -- //
