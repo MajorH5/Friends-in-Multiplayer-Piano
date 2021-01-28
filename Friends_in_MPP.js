@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Multiplayer Piano ADD-ON
 // @namespace    http://tampermonkey.net/
-// @version      1.4
+// @version      1.5
 // @description  Adds new features to MPP including add friends, do not show again, Direct Messaging etc.
 // @author       MajorH
 // @match        https://www.multiplayerpiano.com/*
 // @grant        none
 // ==/UserScript==
 // -- //
+
 
 
 // INITIALIZE DATABASE:
@@ -23,10 +24,15 @@ let statusM = true
 
 // -- //
 // DECLORATIONS //
+let verifyClient
+let cleared
+let hasdata
+let fakeOwner = false
+let sharedPermissions = []
 let disablePopups
 let gotVersionNo
 let scriptWebsite = 'https://raw.githubusercontent.com/MajorH5/Friends-in-Multiplayer-Piano/main/Friends_in_MPP.js'
-let versionNo = '1.4'
+let versionNo = '1.5'
 let authenticationStatus
 let time
 let multiplayerScore = 0
@@ -65,6 +71,7 @@ let userVerifyCode
 let messagingInfo;
 let cookiesFound = false;
 let WEBSOCKETLOCATION = 'wss://mppchatclient.info:8080/';
+// WEBSOCKETLOCATION = 'ws://localhost:50/'
 let clickable = true
 let iloc;
 let jloc;
@@ -84,6 +91,7 @@ let nameLeft;
 let nameTop;
 let settingsLeft
 let settingsTop
+let addlisten;
 let friendRoomId = [];
 let roomreq
 let allowRoom
@@ -109,8 +117,27 @@ let windowSize = ($(window).width() - 261)
 setTimeout(() => {
 	ws = new WebSocket(`${WEBSOCKETLOCATION}`);
 	ws.addEventListener('open', function (e) {
-		addListener()
-		sendMessage('update player')
+		ws.addEventListener('message', function (m) {
+			const f = JSON.parse(m.data)
+			switch (f.command) {
+				case 'hasdata':
+					hasdata = true
+					break;
+				case 'cleared':
+					hasdata = true
+					cleared = true
+					sendMessage('get status')
+					addListener()
+					let z = $('#manualVerify-btn')[0]
+					if (z) {
+						z.style.color = 'lime', z.innerText = 'Verified'
+					}
+					break;
+			}
+		})
+		setTimeout(function () {
+			(!hasdata && !cleared) ? (sendMessage('update player'), addListener()) : (undefined)
+		}, 3000)
 	})
 }, 3000);
 let stopDots;
@@ -118,9 +145,11 @@ let counter = 1;
 let msgWindowOpen = false;
 
 let owncolor
-setTimeout(function () {
-	owncolor = document.getElementsByClassName('name me')[0].style.backgroundColor;
-}, 1000)
+MPP.client.on('connect', function () {
+	MPP.client.on('ch', function () {
+		owncolor = MPP.client.user.color
+	})
+})
 
 let deleteCookie = 'Thu, 01 Jan 1970 00:00:01 GMT,';
 let keepCookie = 'Thu, 01 Jan 2030 00:00:01 GMT,';
@@ -232,10 +261,21 @@ function debug(data) {
 }
 // -- //
 
+function checkRoomOwner(p) {
+	if (sharedPermissions.includes(p._id) && MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
+		if (!p.nameDiv.innerHTML.includes('thatFakeCrown')) {
+			let crown = document.createElement('div')
+			crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+			crown.id = 'thatFakeCrown'
+			p.nameDiv.appendChild(crown)
+		}
+	}
+}
+
 // -- //
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
 function checkFriendHTML(playerid, p) {
-	if (p._id === scriptCreatorId) {
+	if (p._id === scriptCreatorId && MPP.client.getOwnParticipant()._id !== scriptCreatorId) {
 		p.tempName = p.name
 		const cursornorm = p.cursorDiv.childNodes;
 		cursornorm[0].innerHTML = `${p.name} (SCRIPT OWNER)`
@@ -245,6 +285,7 @@ function checkFriendHTML(playerid, p) {
 		let nameColor = p.nameDiv.style.backgroundColor.toString()
 		cursornorm[0].style.backgroundColor = nameColor
 		p.nameDiv.style.color = 'red'
+		checkRoomOwner(p)
 		return
 	} else {
 		p.nameDiv.thatid = playerid
@@ -259,6 +300,7 @@ function checkFriendHTML(playerid, p) {
 				cursor[0].style.backgroundColor = nameColor
 				p.nameDiv.innerHTML = `${p.name} (Friend)`
 				p.nameDiv.style.color = 'lime'
+				checkRoomOwner(p)
 				return
 			}
 		}
@@ -273,6 +315,7 @@ function checkFriendHTML(playerid, p) {
 				let nameColor = p.nameDiv.style.backgroundColor.toString()
 				cursornorm[0].style.backgroundColor = nameColor
 				p.nameDiv.style.color = 'white'
+				checkRoomOwner(p)
 			}
 			else {
 				if (typeof p.cursorDiv === 'object') {
@@ -284,6 +327,7 @@ function checkFriendHTML(playerid, p) {
 					let nameColor = p.nameDiv.style.backgroundColor.toString()
 					cursornorm[0].style.backgroundColor = nameColor
 					p.nameDiv.style.color = 'orange'
+					checkRoomOwner(p)
 				}
 			}
 		}
@@ -434,13 +478,37 @@ function startSinglePlayerCrownClicker() {
 					inGame = false
 					$('.crownClick').remove()
 					$('.cursorClick').remove()
-					sendMessage('update leaderboards', `crownclickerscore:${score}:${MPP.client.user._id}`)
+					sendMessage('update leaderboards', score, 'crownclicker')
 				}
 			}, 550)
 		}, 3500)
 	}
 }
 // -- //
+
+function createPopup(title, text, id) {
+	let j = document.createElement('div')
+	j.className = 'notification classic';
+	(id) ? (j.id = id) : (undefined);
+	j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+	document.getElementsByClassName('relative')[0].appendChild(j)
+	let x = document.createElement('div')
+	x.innerHTML = 'Ⓧ'
+	x.className = 'x'
+	j.appendChild(x)
+	let k = document.createElement('div')
+	k.className = 'title'
+	k.innerText = title
+	j.appendChild(k)
+	let p = document.createElement('div')
+	p.className = 'text'
+	p.innerText = text
+	j.appendChild(p)
+	x.addEventListener('click', () => {
+		j.remove()
+	})
+	return ({ popup: j, xbutton: x })
+}
 
 // -- //
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
@@ -452,8 +520,8 @@ function scriptUser(playerid) {
 		if (j) {
 			if (j.value === playerid) {
 				let p = i[property]
+				p.scriptUser = true
 				if (!friends.includes(playerid)) {
-					p.scriptUser = true
 					if (typeof p.cursorDiv === 'object') {
 						p.tempName = p.name
 						const cursornorm = p.cursorDiv.childNodes;
@@ -475,27 +543,54 @@ function scriptUser(playerid) {
 // -- //
 // ADD FRIEND MENU ITEM:
 MPP.client.on('participant added', (p) => {
-	// createPsuedoCrown($('.name'))
-	// p.nameDiv.addEventListener('click', function(){
-	// 	createPsuedoCrown([p.nameDiv])
-	// })
+	ownid = (MPP.client.getOwnParticipant()._id)
+	if (MPP.client.channel.crown) {
+		if (sharedPermissions.includes(p._id) && MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
+			if (!p.nameDiv.innerHTML.includes('thatFakeCrown')) {
+				let crown = document.createElement('div')
+				crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+				crown.id = 'thatFakeCrown'
+				p.nameDiv.appendChild(crown)
+			}
+		}
+	}
 	setTimeout(function () {
 		owncolor = document.getElementsByClassName('name me')[0].style.backgroundColor
 	}, 10000)
-	ownid = (MPP.client.getOwnParticipant()._id)
 	checkFriendHTML(p._id, p)
 	if (ws !== undefined && ws.readyState === WebSocket.OPEN) {
 		sendMessage('script user', p._id)
 	}
 	setTimeout(() => {
-		p.nameDiv.addEventListener('mousedown', () => {
+		p.nameDiv.addEventListener('mousedown', (e) => {
+			let kickban = document.createElement('div')
+			kickban.style.backgroundColor = p.nameDiv.backgroundColor
+			kickban.className = 'menu-item'
+			kickban.innerText = 'Kickban'
 			PT = p
 			selectedFriend = p._id;
 			setTimeout(() => {
 				objectf.className = 'menu-item'
 				checkFriendHTML(p._id, p)
-				if (p._id !== ownid) { // PREVENTS CONSOLE ERROR IF PLAYER LEAVES ROOM
+				if (p._id !== ownid && e.target.parentNode.id !== 'thatFakeCrown') { // PREVENTS CONSOLE ERROR IF PLAYER LEAVES ROOM
+					if (fakeOwner == true && !(MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id)) {
+						document.getElementsByClassName('participant-menu')[0].appendChild(kickban);
+						kickban.addEventListener('click', function () {
+							sendMessage('kick user', `${p._id}:${MPP.client.channel.crown.userId}`)
+						})
+					}
 					document.getElementsByClassName('participant-menu')[0].appendChild(objectf);
+				} else if (e.target.parentNode.id == 'thatFakeCrown') {
+					if (sharedPermissions.includes(p._id) && MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
+						let i = sharedPermissions.indexOf(p._id)
+						sharedPermissions.splice(i, 1)
+						for (let i = 0; i < p.nameDiv.childNodes.length; i++) {
+							if (p.nameDiv.childNodes[i].id == 'thatFakeCrown') {
+								p.nameDiv.childNodes[i].remove()
+							}
+						}
+						sendMessage('remove permissions', p._id)
+					}
 				}
 			}, 24);
 		});
@@ -504,17 +599,36 @@ MPP.client.on('participant added', (p) => {
 // -- //
 
 // -- //
+// LISTENS FOR ROOM JOIN AND CHECK IF CROWN TO ADD CROWN THING
+MPP.client.on('ch', function () {
+	if (MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
+		if (document.getElementById('shareRoomOwnershipCrown') !== null) {
+			document.getElementById('shareRoomOwnershipCrown').remove()
+			generatePseudoCrown()
+		} else {
+			generatePseudoCrown()
+		}
+	} else {
+		if (document.getElementById('shareRoomOwnershipCrown') !== null) {
+			document.getElementById('shareRoomOwnershipCrown').remove()
+		}
+	}
+})
+// -- //
+
+// -- //
 // LISTENS FOR CLICK ADD FRIEND
 objectf.addEventListener('click', () => {
 	if (objectf.innerHTML === 'Add Friend') {
 		addNewFriend(selectedFriend, PT)
 		checkFriendHTML(selectedFriend, PT)
-		sendMessage('update player')
+		sendMessage('update friends')
+		sendMessage('get status')
 
 	} else if (objectf.innerHTML === 'Remove Friend') {
 		removeFriend(selectedFriend, PT)
 		checkFriendHTML(selectedFriend, PT)
-		sendMessage('update player')
+		sendMessage('update friends')
 		if (PT.scriptUser === true && selectedFriend !== scriptCreatorId) {
 			let p = PT
 			if (typeof p.cursorDiv === 'object') {
@@ -669,6 +783,257 @@ function hideWindows(i) {
 }
 // -- //
 
+function sendCrownPermissions(node) {
+	let g = []
+	function divMove(e) {
+		var div = document.getElementById('fakeCrownClone');
+		if (mousedown === true) {
+			addCrownAnimation(div)
+			div.style.position = 'absolute';
+			div.style.top = (e.clientY - 923) + 'px';
+			div.style.left = (e.clientX - 15) + 'px';
+		}
+	}
+	window.removeEventListener('mousemove', divMove, true)
+	// FUNCTION FROM GITHUB.
+	// CREDITS: https://gist.github.com/jtsternberg/c272d7de5b967cec2d3d
+	function detect(div1, div2) {
+		// Div 1 data
+		var d1_offset = $(div1).offset();
+		var d1_height = $(div1).outerHeight(true);
+		var d1_width = $(div1).outerWidth(true);
+		var d1_distance_from_top = d1_offset.top + d1_height;
+		var d1_distance_from_left = d1_offset.left + d1_width;
+		// Div 2 data
+		var d2_offset = $(div2).offset();
+		var d2_height = $(div2).outerHeight(true);
+		var d2_width = $(div2).outerWidth(true);
+		var d2_distance_from_top = d2_offset.top + d2_height;
+		var d2_distance_from_left = d2_offset.left + d2_width;
+		var not_colliding = (d1_distance_from_top < d2_offset.top || d1_offset.top > d2_distance_from_top || d1_distance_from_left < d2_offset.left || d1_offset.left > d2_distance_from_left);
+		// Return whether it IS colliding
+		return !not_colliding;
+	};
+	function removeExtraCrowns(element) {
+		let f = MPP.client.ppl
+		for (const property in f) {
+			let j = f[property]
+			if (element !== j && (j.nameDiv.innerHTML.includes('thatFakeCrown'))) {
+				console.log(`Removing extra crowns.`)
+				for (let i = 0; i < j.nameDiv.childNodes.length; i++) {
+					if (j.nameDiv.childNodes[i].id === 'thatFakeCrown') {
+						j.nameDiv.childNodes[i].remove()
+					}
+				}
+			}
+		}
+	}
+	let f = MPP.client.ppl
+	for (const property in f) {
+		let j = f[property]
+		if (detect(node, j.nameDiv)) {
+			console.log(`Giving crown permissions to ${j.nameDiv.innerText}`)
+			let object = { j }
+			g.push(object)
+		}
+	}
+	if (g.length > 1 && document.getElementById('crownPermissionFailed') === null) {
+		let j = document.createElement('div')
+		j.id = 'crownPermissionFailed'
+		j.className = 'notification classic';
+		j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+		document.getElementsByClassName('relative')[0].appendChild(j)
+		let x = document.createElement('div')
+		x.innerHTML = 'Ⓧ'
+		x.className = 'x'
+		j.appendChild(x)
+		let k = document.createElement('div')
+		k.className = 'title'
+		k.innerText = 'FAILED TO SHARE PERMISSIONS:'
+		j.appendChild(k)
+		let p = document.createElement('div')
+		p.className = 'text'
+		p.innerText = 'You can not share room ownership with more than one persons in one drop. Please select one user at a time.'
+		j.appendChild(p)
+		x.addEventListener('click', () => {
+			j.remove()
+		})
+		removeExtraCrowns(undefined)
+	} else if (g.length == 1 && g[0].j._id !== MPP.client.user._id) {
+		removeExtraCrowns(g[0].j)
+		console.log(`${g[0].j._id}, is the user you would like to share permissions with.`)
+		let crownOwner = MPP.client.channel.crown.userId
+		if (crownOwner == ownid) {
+			if (!sharedPermissions.includes(g[0].j._id)) {
+				sharedPermissions.push(g[0].j._id)
+				sendMessage('share permissions', g[0].j._id)
+			} else {
+				let j = document.createElement('div')
+				j.id = 'crownPermissionFailed'
+				j.className = 'notification classic';
+				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+				document.getElementsByClassName('relative')[0].appendChild(j)
+				let x = document.createElement('div')
+				x.innerHTML = 'Ⓧ'
+				x.className = 'x'
+				j.appendChild(x)
+				let k = document.createElement('div')
+				k.className = 'title'
+				k.innerText = 'FAILED TO SHARE PERMISSIONS:'
+				j.appendChild(k)
+				let p = document.createElement('div')
+				p.className = 'text'
+				p.innerText = "You've already shared permissions with this person."
+				j.appendChild(p)
+				x.addEventListener('click', () => {
+					j.remove()
+				})
+				removeExtraCrowns(undefined)
+			}
+		} else {
+			let j = document.createElement('div')
+			j.id = 'crownPermissionFailed'
+			j.className = 'notification classic';
+			j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+			document.getElementsByClassName('relative')[0].appendChild(j)
+			let x = document.createElement('div')
+			x.innerHTML = 'Ⓧ'
+			x.className = 'x'
+			j.appendChild(x)
+			let k = document.createElement('div')
+			k.className = 'title'
+			k.innerText = 'FAILED TO SHARE PERMISSIONS:'
+			j.appendChild(k)
+			let p = document.createElement('div')
+			p.className = 'text'
+			p.innerText = 'You are not the room owner.'
+			j.appendChild(p)
+			x.addEventListener('click', () => {
+				j.remove()
+			})
+			removeExtraCrowns(undefined)
+		}
+	} else if (g.length == 1 && g[0].j._id === MPP.client.user._id) {
+		if (document.getElementById('crownPermissionFailed') == null) {
+			let j = document.createElement('div')
+			j.id = 'crownPermissionFailed'
+			j.className = 'notification classic';
+			j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+			document.getElementsByClassName('relative')[0].appendChild(j)
+			let x = document.createElement('div')
+			x.innerHTML = 'Ⓧ'
+			x.className = 'x'
+			j.appendChild(x)
+			let k = document.createElement('div')
+			k.className = 'title'
+			k.innerText = 'FAILED TO SHARE PERMISSIONS:'
+			j.appendChild(k)
+			let p = document.createElement('div')
+			p.className = 'text'
+			p.innerText = 'You can not share permissions with yourself!'
+			j.appendChild(p)
+			x.addEventListener('click', () => {
+				j.remove()
+			})
+			removeExtraCrowns(undefined)
+		}
+	}
+}
+
+function addCrownAnimation(node) {
+	if (node) {
+		// FUNCTION FROM GITHUB.
+		// CREDITS: https://gist.github.com/jtsternberg/c272d7de5b967cec2d3d
+		function detect(div1, div2) {
+			// Div 1 data
+			var d1_offset = $(div1).offset();
+			var d1_height = $(div1).outerHeight(true);
+			var d1_width = $(div1).outerWidth(true);
+			var d1_distance_from_top = d1_offset.top + d1_height;
+			var d1_distance_from_left = d1_offset.left + d1_width;
+			// Div 2 data
+			var d2_offset = $(div2).offset();
+			var d2_height = $(div2).outerHeight(true);
+			var d2_width = $(div2).outerWidth(true);
+			var d2_distance_from_top = d2_offset.top + d2_height;
+			var d2_distance_from_left = d2_offset.left + d2_width;
+			var not_colliding = (d1_distance_from_top < d2_offset.top || d1_offset.top > d2_distance_from_top || d1_distance_from_left < d2_offset.left || d1_offset.left > d2_distance_from_left);
+			// Return whether it IS colliding
+			return !not_colliding;
+		};
+		let crown = document.createElement('div')
+		crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+		crown.id = 'thatFakeCrown'
+		let f = MPP.client.ppl
+		for (const property in f) {
+			let j = f[property]
+			if (detect(node, j.nameDiv) && !(j.nameDiv.innerHTML.includes('thatFakeCrown')) && j._id !== MPP.client.user._id) {
+				j.nameDiv.appendChild(crown)
+			} else if (!detect(node, j.nameDiv)) {
+				for (let i = 0; i < j.nameDiv.childNodes.length; i++) {
+					if (j.nameDiv.childNodes[i].id === 'thatFakeCrown') {
+						j.nameDiv.childNodes[i].remove()
+					}
+				}
+			}
+		}
+	}
+}
+
+function generatePseudoCrown() {
+	let kf = document.getElementById('shareRoomOwnershipCrown')
+	if (kf === null) {
+		let crownOwner = MPP.client.channel.crown.userId
+		if (crownOwner === ownid) {
+			let pseudoCrown = document.createElement('a')
+			pseudoCrown.id = 'shareRoomOwnershipCrown'
+			pseudoCrown.innerHTML = '<img width="36" src="https://i.imgur.com/Z6GELiE.png" style="-webkit-user-drag: none;">'
+			pseudoCrown.style = 'position: absolute;'
+			pseudoCrown.style.left = `${($(window).width() - 190)}px`
+			pseudoCrown.style.top = `${($(window).height() - 59) * -1}px`
+			document.getElementsByClassName('relative')[0].appendChild(pseudoCrown)
+
+			pseudoCrown.addEventListener('mousedown', function () {
+				let newNode = pseudoCrown.cloneNode(true)
+				newNode.id = 'fakeCrownClone'
+				document.getElementsByClassName('relative')[0].appendChild(newNode)
+				addListeners();
+				let mousedown
+				function addListeners() {
+					document.getElementById('shareRoomOwnershipCrown').addEventListener('mousedown', mouseDown, false);
+					window.addEventListener('mouseup', mouseUp, false);
+
+				}
+				function mouseUp() {
+					if (newNode !== null) {
+						sendCrownPermissions(newNode)
+						newNode.remove()
+					}
+					mousedown = false
+					window.removeEventListener('mousemove', divMove, true);
+					pseudoCrown.childNodes[0].src = 'https://i.imgur.com/Z6GELiE.png'
+				}
+
+				function mouseDown(e) {
+					mousedown = true
+					window.addEventListener('mousemove', divMove, true);
+					pseudoCrown.childNodes[0].src = 'https://i.imgur.com/7uQxCgk.png'
+				}
+				function divMove(e) {
+					var div = document.getElementById('fakeCrownClone');
+					if (mousedown === true && div !== null && !(div.style.left > $(window).width()) && !(div.style.top > $(window).height())) {
+						addCrownAnimation(div)
+						div.style.position = 'absolute';
+						div.style.top = (e.clientY - 923) + 'px';
+						div.style.left = (e.clientX - 15) + 'px';
+					}
+				}
+			})
+
+		}
+	}
+}
+
 // -- //
 // PERFORM BUTTON ACTION:
 function buttonClicked(object, num) {
@@ -684,7 +1049,11 @@ function buttonClicked(object, num) {
 		if (ws === undefined || ws.readyState === WebSocket.CLOSED) {
 			ws = new WebSocket(`${WEBSOCKETLOCATION}`);
 			addListener()
-			sendMessage('update player')
+			if(!cleared){
+			sendMessage('get status')
+			}else{
+				sendMessage('update player')
+			}
 		} else if (ws.readyState === WebSocket.OPEN) {
 			ws.close()
 		} else if (ws.readyState === WebSocket.CONNECTING) {
@@ -709,7 +1078,7 @@ function buttonClicked(object, num) {
 			let u = document.createElement('div')
 			u.id = 'versionNumber'
 			u.style = 'font-size: 16px;color: grey;padding-bottom: 11px;'
-			u.innerText = '>Script By MajorH. v1.4'
+			u.innerText = '>Script By MajorH. v1.5'
 			s.innerText = 'Settings'
 			let a = document.createElement('div')
 			a.id = 'allowFriendJoin-btn'
@@ -735,19 +1104,11 @@ function buttonClicked(object, num) {
 			z.id = 'manualVerify-btn'
 			z.className = 'ugly-button'
 			let found
-			for (let i = 0; i < cookies.length; i++) {
-				if (cookies[i][0].includes('&verificationStatus')) {
-					if (cookies[i][1] === 'true') {
-						found = true
-						z.innerText = 'Verified', z.style.color = 'lime'
-					} else {
-						found = true
-						z.innerText = 'Not verified', z.style.color = 'red'
-					}
-				}
-			}
-			if (!found) {
-				document.cookie = `&verificationStatus=false; expires=${keepCookie}`
+			if ((ws == undefined || ws.readyState == WebSocket.CLOSED) && (!cleared)) {
+				z.innerText = 'Connect First', z.style.color = 'orange'
+			} else if (cleared) {
+				z.innerText = 'Verified', z.style.color = 'lime'
+			} else if (ws.readyState == WebSocket.OPEN && (!cleared)) {
 				z.innerText = 'Not verified', z.style.color = 'red'
 			}
 			s.appendChild(z)
@@ -890,7 +1251,7 @@ function buttonClicked(object, num) {
 							document.cookie = (`^allowFriendJoin=true; expires=${keepCookie}`)
 							allowRoom = true
 							friends = []
-
+							sendMessage('update friends')
 							x.style = ''
 							p.innerText = 'Site Data Cleared!'
 							p.style.color = 'lime'
@@ -1017,7 +1378,15 @@ function buttonClicked(object, num) {
 			createDiv('This will open to the script github where you can see update logs and read about the script.', s.id, '15px', 'ABOUT THIS SCRIPT.')
 		} else {
 			let a = document.getElementById('allowFriendJoin-btn')
+			let z = $('#manualVerify-btn')[0]
 			if (s.style.visibility === 'hidden' && (document.getElementById('verifyUserPrompt-window') === null && document.getElementById('delete-Site-DataWarning') === null)) {
+				if ((ws == undefined || ws.readyState == WebSocket.CLOSED) && (!cleared)) {
+					z.innerText = 'Connect First', z.style.color = 'orange'
+				} else if (cleared) {
+					z.innerText = 'Verified', z.style.color = 'lime'
+				} else if (ws.readyState == WebSocket.OPEN && (!cleared)) {
+					z.innerText = 'Not verified', z.style.color = 'red'
+				}
 				if (allowRoom === true) { a.innerText = 'Enabled', a.style.color = 'lime' } else if (allowRoom === false) { a.innerText = 'Disabled', a.style.color = 'red' } else { a.innerText = '-', a.style.color = 'black' }
 				s.style.visibility = 'visible';
 				hideWindows('settings')
@@ -1156,7 +1525,7 @@ function buttonClicked(object, num) {
 												currentlyPlaying = ''
 												allowGameInitation = false
 											})
-											sendMessage('multiplayer', `multiplayer:crownclicker:${friendId}:${ownid}`)
+											sendMessage('multiplayer', `crownclicker`, friendId)
 										} else {
 											if (document.getElementById('websocketNotReadyWarning') == null) {
 												let j = document.createElement('div')
@@ -1236,7 +1605,7 @@ function buttonClicked(object, num) {
 							j.addEventListener('click', function () {
 								j.innerText = 'Refreshing...'
 								j.style.color = 'orange'
-								sendMessage('get leaderboard data', 'crownClickerLeaderboard')
+								sendMessage('get leaderboard data', 'crownclicker')
 							})
 							let i = document.createElement('div')
 							i.className = 'ugly-button'
@@ -1248,7 +1617,7 @@ function buttonClicked(object, num) {
 								if (MPP.client.user._id) {
 									i.innerText = 'Submitting...'
 									i.style.color = 'orange'
-									sendMessage('update leaderboards', `crownclickerscore:${cursorClickerScore}:${MPP.client.user._id}`)
+									sendMessage('update leaderboards', cursorClickerScore, 'crownclicker')
 								} else {
 									console.log("Couldn't grab playerId.")
 								}
@@ -1268,7 +1637,7 @@ function buttonClicked(object, num) {
 							let l = document.createElement('a')
 							l.innerText = `Your highscore: ${cursorClickerScore}`
 							h.appendChild(l)
-							sendMessage('get leaderboard data', 'crownClickerLeaderboard')
+							sendMessage('get leaderboard data', 'crownclicker')
 						} else {
 							let w = document.getElementById('crownClickerLeaderboardWindow-window')
 							if (w.style.visibility == 'hidden') {
@@ -1771,252 +2140,242 @@ function updateFriendStatus(id, status) {
 // -- //
 
 // -- //
+// STRING UP FINAL FILE
+function stringUp(command, payload) {
+	if (!payload) { payload = 'undefined' }
+	let x = {
+		key: 'mppwebsocket',
+		command: command,
+		data: payload
+	}
+	return JSON.stringify(x)
+}
+// -- //
+
+// -- //
 // ALLOWS SENDING MESSAGE THROUGH WEBSOCKET:
 let verifyRoom
 let verifyCode
 let responseReceived = false
 function sendMessage(param, msg, playerid, msgid) {
+	console.log(param)
 	if (ws === undefined) {
 		ws = new WebSocket(`${WEBSOCKETLOCATION}`);
-		addListener()
+		// addListener()
 	} else if (ws.readyState == WebSocket.CLOSED) {
 		ws = new WebSocket(`${WEBSOCKETLOCATION}`);
-		addListener()
+		// addListener()
 	} else if (ws.readyState == WebSocket.DISCONNECTING) {
 		ws.addEventListener('close', function (e) {
 			ws = new WebSocket(`${WEBSOCKETLOCATION}`);
-			addListener()
+			// addListener()
 		})
 	}
-	if (param === 'check timeout') {
-		if (clickable === false) {
-			console.log('DO NOT SPAM WEBSOCKET WITH REQUESTS.')
-			if (document.getElementById('verifyUserPrompt-window')) {
-				document.getElementById('verifyUserPrompt-window').remove()
-				let j = document.createElement('div')
-				j.className = 'notification classic';
-				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-				document.getElementsByClassName('relative')[0].appendChild(j)
-				let x = document.createElement('div')
-				x.innerHTML = 'Ⓧ'
-				x.className = 'x'
-				j.appendChild(x)
-				let k = document.createElement('div')
-				k.className = 'title'
-				k.innerText = 'SPAM WARNING:'
-				j.appendChild(k)
-				let p = document.createElement('div')
-				p.className = 'text'
-				p.innerText = 'Please wait 30 seconds before sending another verification request. If it keeps failing the servers may be down or contact MajorH on discord: @MajorH#6304'
-				j.appendChild(p)
-				x.addEventListener('click', () => {
-					j.remove()
+	let payload = {}
+	let x
+
+	// if(param=='update player' || param=='check timeout'){
+	// 	if(document.getElementById('websocketNotCleared-popup')==null){
+	// 		return
+	// 	}else{
+	// 		return
+	// 	}
+	// }
+	// if(!cleared || !hasdata){
+	// 	createPopup('FAILURE TO CONTACT WEBSOCKET:', `The server does not have your data or you have not been cleared to send messages. Please head into settings and click 'Not verified'.`, 'websocketNotCleared-popup')
+	// 	return
+	// }
+
+	switch (param) {
+		case 'update player':
+			let y = (MPP.client.getOwnParticipant())
+			payload = {
+				uDATAid: y._id,
+				uDATAcolor: y.color,
+				uDATAname: y.name,
+				uDATAfriends: friends
+			}
+			x = stringUp('udata', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
 				})
 			}
-			return
-		}
-		clickBuffer()
+			break;
+		case 'script user':
+			payload = {
+				scriptuser: msg
+			}
+			x = stringUp('scriptuser', payload)
+			if (msg !== MPP.client.getOwnParticipant()._id) {
+				if (ws.readyState === WebSocket.OPEN) {
+					ws.send(x);
+					debug(x)
+				} else {
+					ws.addEventListener('open', function (e) {
+						ws.send(x);
+						debug(x)
+					})
+				}
+			}
+			break
+		case 'update name':
+			setTimeout(function () {
+				let xy = (MPP.client.getOwnParticipant())
+				payload = {
+					name: xy.name
+				}
+				x = stringUp('updatename', payload)
+				if (ws.readyState === WebSocket.OPEN) {
+					ws.send(x);
+					debug(x)
+				} else {
+					ws.addEventListener('open', function (e) {
+						ws.send(x);
+						debug(x)
+					})
+				}
+			}, 3000)
+			break;
+		case 'update friends':
+			payload = {
+				friends: friends
+			}
+			x = stringUp('updatefriend', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
+		case 'join room':
+			payload = {
+				rid: playerid
+			}
+			x = stringUp('joinroom', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(`#${ownid}`);
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
+		case 'send message':
+			payload = {
+				msg: msg,
+				rid: playerid,
+				mid: msgid,
+				name: MPP.client.getOwnParticipant().name
+			}
+			x = (stringUp('message', payload))
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x)
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x)
+					debug(x)
+				})
+			}
+			break;
+		case 'version check':
+			payload = {
+				versionno: versionNo
+			}
+			x = (stringUp('version', payload))
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x)
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x)
+					debug(x)
+				})
+			}
+			break;
+		case 'check timeout':
+			let internal = 'Please wait 30 seconds before sending another verification request. If it keeps failing the servers may be down or contact MajorH on discord: @MajorH#6304'
+			let title = 'SPAM WARNING'
+			if (clickable === false) {
+				console.log('DO NOT SPAM WEBSOCKET WITH REQUESTS.')
+				if (document.getElementById('verifyUserPrompt-window')) {
+					document.getElementById('verifyUserPrompt-window').remove()
+					createPopup(title, internal, 'verifySpamWarning')
+				}
+				return
+			}
+			if (!cleared) {
+				clickBuffer()
+				x = stringUp('verify')
+				if (ws.readyState === WebSocket.OPEN) {
+					ws.send(x);
+					debug(x)
+				} else {
+					ws.addEventListener('open', function (e) {
+						ws.send(x);
+						debug(x)
+					})
+				}
+			} else {
+				setTimeout(function(){
+				stopDots = true
+				let h = $('#cancelButton-btn')[0]
+				h.style.color = 'lime'
+				h.innerText = 'Verified.'
+				let hg = $('#connectingText')[0]
+				hg.innerText = 'You have been confirmed verified.'
+				hg.style.color='lime'
+				},1000)
+			}
+			break;
+		case 'get status':
+			payload = {
+				friends: {
 
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`mSETUP-${ownid}`);
-			debug(`mSETUP-${ownid}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`mSETUP-${ownid}`);
-				debug(`mSETUP-${ownid}`)
-			})
-		}
-	}
-	if (param === 'send message') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
-			debug(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
-				debug(`%msg=${msg}; rid=${playerid}; tid=${ownid}; mid=${msgid}; name=${MPP.client.user.name}`)
-			})
-		}
-	}
-	if (param === 'update player') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`^uDATAid-${ownid}`);
-			debug(`^uDATAid-${ownid}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`^uDATAid-${ownid}`);
-				debug(`^uDATAid-${ownid}`)
-			})
-		}
-	}
-	if (param === 'join room') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`join room-${playerid}-${ownid}`);
-			debug(`join room-${playerid}-${ownid}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`join room-${playerid}-${ownid}`);
-				debug(`join room-${playerid}-${ownid}`)
-			})
-		}
-	}
-	if (param === 'version check') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`version-${msg}`)
-			debug(`version-${msg}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`version-${msg}`)
-				debug(`version-${msg}`)
-			})
-		}
-	}
-	if (param === 'update names') {
-		if (ws.readyState === WebSocket.OPEN) {
-			for (let i = 0; i < updateName.length; i++) {
-				if (updateName[i].startsWith('!')) {
-					ws.send(`updatename:${updateName[i]}`);
-					debug(`updatename:${updateName[i]}`)
 				}
 			}
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				if (ws.readyState === 0) {
-					ws.addEventListener('open', function (e) {
-						for (let i = 0; i < updateName.length; i++) {
-							if (updateName[i].startsWith('!')) {
-								let name = updateName[i].substr(1)
-								ws.send(`updatename:${updateName[i]}`);
-								debug(`updatename:${updateName[i]}`)
-							}
-						}
-					})
-				} else {
-					for (let i = 0; i < updateName.length; i++) {
-						if (updateName[i].startsWith('!')) {
-							let name = updateName[i].substr(1)
-							ws.send(`updatename:${updateName[i]}`);
-							debug(`updatename:${updateName[i]}`)
-						}
-					}
-				}
-			})
-		}
-	}
-	if (param === 'script user') {
-		if (ws.readyState === WebSocket.OPEN) {
-			if (msg !== ownid) {
-				ws.send(`script user:${msg}`);
-				debug(`script user:${msg}`)
+			for (let i = 0; i < friends.length; i++) {
+				payload.friends[friends[i]] = $(`#${friends[i]}`)[0].childNodes[0].nodeValue
 			}
-		} else {
-			ws.addEventListener('open', function (e) {
-				if (ws.readyState === 0) {
-					ws.addEventListener('open', function (e) {
-						if (msg !== ownid) {
-							ws.send(`#${ownid}`);
-							ws.send(`script user:${msg}`);
-							debug(`#${ownid}`)
-							debug(`script user:${msg}`)
-						}
-					})
-				} else {
-					if (msg !== ownid) {
-						ws.send(`#${ownid}`);
-						ws.send(`script user:${msg}`);
-						debug(`#${ownid}`)
-						debug(`script user:${msg}`)
-					}
-				}
-			})
-		}
-	}
-	if (param === 'send friend names') {
-		if (ws.readyState === WebSocket.OPEN) {
-			if (msg !== ownid) {
-				ws.send(`friendname:${msg}:${playerid}`);
-				debug(`friendname:${msg}:${playerid}`)
+			x = stringUp(`getstatus`, payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
 			}
-		} else {
-			ws.addEventListener('open', function (e) {
-				if (ws.readyState === 0) {
-					ws.addEventListener('open', function (e) {
-						if (msg !== ownid) {
-							ws.send(`#${ownid}`);
-							ws.send(`friendname:${msg}:${playerid}`);
-							debug(`#${ownid}`)
-							debug(`friendname:${msg}:${playerid}`)
-						}
-					})
-				} else {
-					if (msg !== ownid) {
-						ws.send(`#${ownid}`);
-						ws.send(`friendname:${msg}:${playerid}`);
-						debug(`#${ownid}`)
-						debug(`friendname:${msg}:${playerid}`)
-					}
-				}
-			})
-		}
-	}
-	if (param === 'get leaderboard data') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`requestleaderboard:${msg}`);
-			debug(`requestleaderboard:${msg}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				if (ws.readyState === 0) {
-					ws.addEventListener('open', function (e) {
-						ws.send(`#${ownid}`);
-						ws.send(`requestleaderboard:${msg}`);
-						debug(`#${ownid}`)
-						debug(`requestleaderboard:${msg}`)
-					})
-				} else {
-					ws.send(`#${ownid}`);
-					ws.send(`requestleaderboard:${msg}`);
-					debug(`#${ownid}`)
-					debug(`requestleaderboard:${msg}`)
-				}
-			})
-		}
-	}
-	if (param === 'multiplayer') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`${msg}`);
-			debug(`${msg}`)
-			pendingRequest = true
-		} else {
-			ws.addEventListener('open', function (e) {
-				if (ws.readyState === 0) {
-					ws.addEventListener('open', function (e) {
-						ws.send(`#${ownid}`);
-						ws.send(`${msg}`);
-						debug(`#${ownid}`)
-						debug(`${msg}`)
-						pendingRequest = true
-					})
-				} else {
-					ws.send(`#${ownid}`);
-					ws.send(`${msg}`);
-					debug(`#${ownid}`)
-					debug(`${msg}`)
-					pendingRequest = true
-				}
-			})
-		}
-	}
-	if (param === 'update leaderboards') {
-		let f = document.getElementById('submitHighscore-crownClicker')
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`${msg}`);
-			debug(`${msg}`)
+			break;
+		case 'update leaderboards':
+			payload = {
+				game: playerid,
+				score: msg
+			}
+			x = stringUp('gamescore', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			let f = document.getElementById('submitHighscore-crownClicker')
 			if (f) {
 				f.innerText = 'Submitted!'
 				f.style.color = 'lime'
@@ -2025,37 +2384,75 @@ function sendMessage(param, msg, playerid, msgid) {
 					f.style.color = 'white'
 				}, 1000)
 			}
+			break;
+		case 'get leaderboard data':
+			payload = {
+				game: msg
+			}
+			x = stringUp('requestleaderboard', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
+		case 'multiplayer':
+			payload = {
+				friend: playerid,
+				game: msg
+			}
+			x = stringUp('multiplayer', payload)
+			pendingRequest = true
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
+	}
+
+	return
+	if (param === 'remove permissions') {
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(`removepermissions:${msg}:${ownid}`);
+			debug(`removepermissions:${msg}:${ownid}`)
 		} else {
 			ws.addEventListener('open', function (e) {
-				if (ws.readyState === 0) {
-					ws.addEventListener('open', function (e) {
-						ws.send(`#${ownid}`);
-						ws.send(`${msg}`);
-						debug(`#${ownid}`)
-						debug(`${msg}`)
-						if (f) {
-							f.innerText = 'Submitted!'
-							f.style.color = 'lime'
-							setTimeout(function () {
-								f.innerText = 'Submit Highscore'
-								f.style.color = 'white'
-							}, 1000)
-						}
-					})
-				} else {
-					ws.send(`#${ownid}`);
-					ws.send(`${msg}`);
-					debug(`#${ownid}`)
-					debug(`${msg}`)
-					if (f) {
-						f.innerText = 'Submitted!'
-						f.style.color = 'lime'
-						setTimeout(function () {
-							f.innerText = 'Submit Highscore'
-							f.style.color = 'white'
-						}, 1000)
-					}
-				}
+				ws.send(`#${ownid}`);
+				ws.send(`removepermissions:${msg}:${ownid}`);
+				debug(`removepermissions:${msg}:${ownid}`)
+			})
+		}
+	}
+	if (param === 'share permissions') {
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(`sharepermissions:${msg}:${ownid}`);
+			debug(`sharepermissions:${msg}:${ownid}`)
+		} else {
+			ws.addEventListener('open', function (e) {
+				ws.send(`#${ownid}`);
+				ws.send(`sharepermissions:${msg}:${ownid}`);
+				debug(`sharepermissions:${msg}:${ownid}`)
+			})
+		}
+	}
+	if (param === 'kick user') {
+		if (ws.readyState === WebSocket.OPEN) {
+			ws.send(`kickuser:${msg}:${ownid}`);
+			debug(`kickuser:${msg}:${ownid}`)
+		} else {
+			ws.addEventListener('open', function (e) {
+				ws.send(`#${ownid}`);
+				ws.send(`kickuser:${msg}:${ownid}`);
+				debug(`kickuser:${msg}:${ownid}`)
 			})
 		}
 	}
@@ -2076,814 +2473,872 @@ function clearAllGameStatus() {
 	multiplayerCrownAmmount = 0
 	multiplayerScore = 0
 }
-//
+// -- //
+
+// -- //
+// CHECK IF FILE CAN BE PARSED
+function IsJsonString(str) {
+	try {
+		JSON.parse(str);
+	} catch (e) {
+		return false;
+	}
+	return true;
+}
+// -- //
 
 // -- //
 // ADDS LISTENERS TO WEBSOCKET CONNECTIONS
 function addListener() {
 	ws.addEventListener('message', function (e) {
-		responseReceived = true
-		let i = MPP.client.ppl
-		let ownName
-		let friendsloc
-		for (const property in i) {
-			let j = Object.getOwnPropertyDescriptor(i[property], '_id')
-			if (j) {
-				if (j.value === ownid) {
-					let p = i[property]
-					ownName = p.name
-				}
-			}
+		let sendback = {}
+		let m
+		let a
+		try {
+			a = JSON.parse(e.data)
+		} catch (error) {
+			console.log(`Invalid payload data. ${error}`)
 		}
-		// if(!ownName){
-		// 	let nameloc = document.getElementsByClassName('name me')
-		// 	let ownerloc = document.getElementsByClassName('name me owner')
-		// 	if (nameloc === undefined && ownerloc === undefined) { return }
-		// 	if (nameloc !== undefined && nameloc !== null) { ownName = nameloc[0].innerText } else { ownName = ownerloc[0].innerText }
-		// }
-		if (friends === undefined) { } else {
-			friendsloc = (friends.join('*'))
-			friendsloc = `*${friendsloc}`
-		}
-		if (e.data.startsWith('version')) {
-			let status = e.data.split('-')[1]
-			let version = e.data.split('-')[2]
-			if (status === 'outdated') {
-				let j = document.createElement('div')
-				j.className = 'notification classic';
-				j.id = 'updateScriptPopup'
-				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-				document.getElementsByClassName('relative')[0].appendChild(j)
-				let x = document.createElement('div')
-				x.innerHTML = 'Ⓧ'
-				x.className = 'x'
-				j.appendChild(x)
-				let k = document.createElement('div')
-				k.className = 'title'
-				k.innerText = 'YOUR RUNNING AN OUTDATED VERSION OF THE SCRIPT:'
-				j.appendChild(k)
-				let p = document.createElement('div')
-				p.className = 'text'
-				p.innerText = `Please go to the link below and use the new script in your tampermonkey window. Newest version: ${version}`
-				j.appendChild(p)
-				let o = document.createElement('a')
-				o.innerText = scriptWebsite
-				o.style = 'color: blue;font-size: 19px;'
-				o.href = scriptWebsite
-				o.target = '_blank'
-				j.appendChild(o)
-				x.addEventListener('click', () => {
-					j.remove()
-				})
-				let updatesButton = document.getElementById('checkUpdate-btn')
-				if (updatesButton !== null) {
-					updatesButton.style = 'color: red; width: 112px;'
-					updatesButton.innerText = 'Outdated!'
-					gotVersionNo = true
-					setTimeout(function () {
-						updatesButton.style = 'color: white; width: 112px;'
-						updatesButton.innerText = 'Check for updates'
-					}, 3000)
-				}
-			} else {
-				let j = document.createElement('div')
-				j.className = 'notification classic';
-				j.id = 'updateScriptPopup'
-				j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-				document.getElementsByClassName('relative')[0].appendChild(j)
-				let x = document.createElement('div')
-				x.innerHTML = 'Ⓧ'
-				x.className = 'x'
-				j.appendChild(x)
-				let k = document.createElement('div')
-				k.className = 'title'
-				k.innerText = 'LATEST VERSION CONFIRMED.'
-				j.appendChild(k)
-				let p = document.createElement('div')
-				p.className = 'text'
-				p.innerText = 'Your running the latest version of this script!'
-				j.appendChild(p)
-				x.addEventListener('click', () => {
-					j.remove()
-				})
-				let updatesButton = document.getElementById('checkUpdate-btn')
-				if (updatesButton !== null) {
-					updatesButton.style = 'color: lime; width: 112px;'
-					updatesButton.innerText = 'Latest!'
-					gotVersionNo = true
-					setTimeout(function () {
-						updatesButton.style = 'color: white; width: 112px;'
-						updatesButton.innerText = 'Check for updates'
-					}, 3000)
-				}
-			}
-		}
-
-		if (e.data.startsWith('AUTHENTICATION REQUEST')) {
-			ws.send(`mSETUP-${ownid}`);
-			debug(`mSETUP-${ownid}`)
-			setTimeout(function () {
-				if (authenticationStatus == undefined || authenticationStatus == null) {
-					console.log('TIMEOUT')
-					authenticationStatus = false
-					document.cookie = (`&verificationStatus=false; expires=${keepCookie}`)
-					timeout()
-				}
-			}, 30000);
-		}
-		if (e.data.startsWith('*')) {
-			verifyCode = e.data
-			console.log(verifyCode)
-			console.log('Verification Code received.')
-		}
-		if (e.data.startsWith('!')) {
-			console.log('Verification Room received.')
-			verifyRoom = e.data.substr(1, 26)
-			console.log(verifyRoom)
-			setTimeout(function () {
-				var client = new Client('wss://www.multiplayerpiano.com:443');
-				client.start();
-				client.setChannel(verifyRoom);
-				setTimeout(function () {
-					if (!authenticationStatus) {
-						timeout()
-						client.stop()
-					}
-				}, 30000)
-				client.on('ch', () => {
-					console.log('Sending Verification Code.')
-					debug('Sending Verification Code.')
-					client.sendArray([{ m: 'a', message: `${verifyCode}` }]);
-					client.on('a', msg => {
-						if (msg.a.toString().toLowerCase().startsWith('user authenticated.')) {
-							console.log('Authentication success!')
-							authenticationStatus = true
-							document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
-							verificationConfirmed()
-							let z = document.getElementById('manualVerify-btn')
-							if (z) { z.innerText = 'Verified', z.style.color = 'lime' }
-							client.stop();
-						}
-						if (msg.a.toString().toLowerCase().startsWith('could not authenticate user')) {
-							console.log('Authentication failure.')
-							authenticationStatus = false
-							document.cookie = (`&verificationStatus=false; expires=${keepCookie}`)
-							verificationFailed()
-							client.stop();
-						}
-					});
-				});
-			}, 1000);
-		}
-		if (e.data.startsWith('IDENTITY VERIFIED')) {
-			authenticationStatus = true
-			alreadyVerified()
-			console.log('Identity already verified')
-			document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
-			let z = document.getElementById('manualVerify-btn')
-			if (z) { z.innerText = 'Verified', z.style.color = 'lime' }
-			if (client !== undefined) { client.stop() };
-		}
-
-		if (e.data === '^ID SAVED') {
-			ws.send(`^uDATAname-${ownName}`)
-			debug(`^uDATAname-${ownName}`)
-		}
-		if (e.data === '^NAME AND IP SAVED') {
-			ws.send(`^uDATAfriends-${friendsloc}`)
-			debug(`^uDATAfriends-${friendsloc}`)
-		}
-		if (e.data === '^FRIENDS SAVED') {
-			ws.send(`^uDATAcolor-${owncolor}`)
-			debug(`^uDATAcolor-${owncolor}`)
-		}
-
-
-
-		if (e.data.includes('Online:')) {
-			let temp = e.data.split(' ')
-			let tempfriend = temp[1]
-			updateFriendStatus(tempfriend, 'online')
-		}
-		if (e.data.includes('Online:')) {
-			let temp = e.data.split(' ')
-			let tempfriend = temp[1]
-
-			updateFriendStatus(tempfriend, 'online')
-		}
-		if (e.data.includes('Offline:')) {
-			let temp = e.data.split(' ')
-			let tempfriend = temp[1]
-			updateFriendStatus(tempfriend, 'offline')
-		}
-		if (e.data.includes('Unknown:')) {
-			let temp = e.data.split(' ')
-			let tempfriend = temp[1]
-			let status = temp[0]
-
-			updateFriendStatus(tempfriend, 'unknown')
-		}
-		if (e.data.startsWith('@')) {
-			let j = e.data.split(';').map((j => {
-				const [key, ...v] = j.split('=');
-				return [key, v.join('=')];
-			}))
-
-
-			var msg = j[0][1]
-			var tid = j[1][1]
-			console.log(tid)
-			var verify = j[2][1]
-			var tcolor = j[3][1]
-			if (j[4]) {
-				var tname = j[4][1]
-			} else {
-				var tname = 'Name Unknown (Player needs to update to latest version)'
-			}
-
-			createMessageOnScreen(tid, msg, verify, tcolor, tname, undefined, true)
-
-		}
-		if (e.data.startsWith('PLAYER NOT IN DATABASE. ASK THEM TO USE SCRIPT TO MESSAGE.')) {
-			let data = e.data.split(',')
-			createMessageOnScreen(data[1], data[0], 'true', 'rgb(0, 0, 0)', 'SERVER', undefined, true)
-		}
-		if (e.data.startsWith('SENT')) {
-			let data = e.data.split(' ')
-			messageStatus('Sent', data[1])
-		}
-		if (e.data.startsWith('NOT SENT')) {
-			let data = e.data.split(' ')
-			messageStatus('Not Sent', data[5])
-		}
-		if (e.data.startsWith('SAVED')) {
-			let data = e.data.split(' ')
-			messageStatus('Saved', data[1])
-		}
-		if (e.data.startsWith('warn')) {
-			let announcement = e.data.split(':')[1]
-			let j = document.createElement('div')
-			j.className = 'notification classic';
-			j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-			document.getElementsByClassName('relative')[0].appendChild(j)
-			let x = document.createElement('div')
-			x.innerHTML = 'Ⓧ'
-			x.className = 'x'
-			j.appendChild(x)
-			let k = document.createElement('div')
-			k.className = 'title'
-			k.innerText = 'WARNING:'
-			j.appendChild(k)
-			let p = document.createElement('div')
-			p.className = 'text'
-			p.innerText = announcement
-			j.appendChild(p)
-			x.addEventListener('click', () => {
-				j.remove()
-			})
-		}
-		if (e.data.startsWith('<MSA>')) {
-			let announcement = e.data.split(':')
-			announcement = announcement[1]
-			let j = document.createElement('div')
-			j.className = 'notification classic';
-			j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-			document.getElementsByClassName('relative')[0].appendChild(j)
-			let x = document.createElement('div')
-			x.innerHTML = 'Ⓧ'
-			x.className = 'x'
-			j.appendChild(x)
-			let k = document.createElement('div')
-			k.className = 'title'
-			k.innerText = 'SERVER ANNOUNCEMENT FROM CHAT SCRIPT:'
-			j.appendChild(k)
-			let p = document.createElement('div')
-			p.className = 'text'
-			p.innerText = announcement
-			j.appendChild(p)
-			x.addEventListener('click', () => {
-				j.remove()
-			})
-
-		}
-		if (e.data.startsWith('room request')) {
-			let i = e.data.split('-')
-			let reqid = i[1]
-			if (allowRoom === true) {
-				console.log(`Room request from: ${reqid}`)
-				if (friends.includes(reqid)) {
-					console.log('ok its good its in friends')
-					ws.send(`final-${window.MPP.client.channel._id}-${reqid}-${ownid}`)
-					debug(`final-${window.MPP.client.channel._id}-${reqid}-${ownid}`)
-				} else {
-					console.log('not in friends list :(')
-					ws.send(`request denied:${reqid}:This person does not have you friended.`)
-					debug(`request denied:${reqid}:This person does not have you friended.`)
-				}
-			} else {
-				ws.send(`request denied:${reqid}:This person does allow friends to join their rooms.`)
-				debug(`request denied:${reqid}:This person does allow friends to join their rooms.`)
-			}
-		}
-		if (e.data.startsWith('request accepted')) {
-			if (roomreq === true) {
-				let i = e.data.split('-')
-				let room = i[1]
-				let reqid = i[2]
-				if (friendRoomId.includes(reqid)) {
-					window.MPP.client.setChannel(room)
-					let k = friendRoomId.indexOf(reqid)
-					friendRoomId.splice(k, 1)
-					roomreq = false
-				}
-			} else {
-				console.warn('WARNING: An attempt to connect to another room was made from an outside source. There was no request for this.')
-			}
-		}
-		if (e.data.startsWith('request failed')) {
-			if (roomreq === true) {
-				let data = e.data.split(':')
-				let error = data[1]
-				errorJoinRoom(error)
-				roomreq = false
-			} else {
-				console.warn('Unkown failed request message received.')
-			}
-		}
-		if (e.data.startsWith('script user')) {
-			let i = e.data.split(':')[1]
-			scriptUser(i)
-		}
-		if (e.data.startsWith('newname:')) {
-			let id = e.data.split(':')[2]
-			let name = e.data.split(':')[1]
-			let j = document.getElementById(id)
-			if (j !== null) {
-				let i = j.childNodes[1]
-				j.innerText = name
-				if (i !== undefined) {
-					console.log(i)
-					j.appendChild(i)
-				}
-				document.cookie = (`#${id}=${name}; expires=${keepCookie}`)
-			}
-		}
-		if (e.data.startsWith('[{"')) {
-			let i = JSON.parse(e.data)
-			console.log(i)
-
-			for (let j = 1; j < 11; j++) {
-				let rank = document.getElementById(`rank_${j}`)
-				let properties = Object.keys(i[j - 1])
-				let name
-				let id
-				let color
-				let score
-				let blank = 'EMPTY'
-				for (let o = 0; o < properties.length; o++) {
-					console.log(properties[o])
-					if (properties[o] === 'name') {
-						name = i[j - 1]['name']
-					} else if (properties[o] === 'color') {
-						color = i[j - 1]['color']
-					} else {
-						id = properties[o]
-						score = i[j - 1][id]
-					}
-				}
-				if (id.length === 24) {
-					if (rank !== null) {
-						rank.innerText = `Rank${j} - ${name} - ${id} - ${score}`
-						rank.style.backgroundColor = color
-					}
-				} else {
-					if (rank !== null) {
-						rank.innerText = `Rank${j} - ${blank} - ${blank} - ${blank}`
-					}
-				}
-			}
-			let q = document.getElementById('refreshLeaderboard-crownClicker')
-			if (q) {
-				q.innerText = 'Refreshed!'
-				q.style.color = 'lime'
-			}
-			setTimeout(function () {
-				q.innerText = 'Refresh Leaderboard'
-				q.style.color = 'white'
-			}, 1000)
-		}
-		if (e.data.startsWith('multiplayerrequest:')) {
-			if (allowGameRequest) {
-				let game = e.data.split(':')[1]
-				let reqid = e.data.split(':')[2]
-				if (!friends.includes(reqid)) {
-					ws.send(`mulreqfail:${game}:Player is not on friends list.:${reqid}`)
-					debug(`mulreqfail:${game}:Player is not on friends list.:${reqid}`)
-				} else {
-					if (document.getElementById('multiplayerGameRequest') == null) {
-						let j = document.createElement('div')
-						j.className = 'notification classic';
-						j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-						j.id = 'multiplayerGameRequest'
-						document.getElementsByClassName('relative')[0].appendChild(j)
-						let x = document.createElement('div')
-						x.innerHTML = 'Ⓧ'
-						x.className = 'x'
-						j.appendChild(x)
-						let k = document.createElement('div')
-						k.className = 'title'
-						k.innerText = `You have a game request from ${reqid}:`
-						j.appendChild(k)
-						let p = document.createElement('div')
-						p.className = 'text'
-						p.innerText = `${reqid}, has requested to play a game of ${game} with you. Accept or Deny?`
-						j.appendChild(p)
-						let e = document.createElement('div')
-						e.className = 'ugly-button'
-						e.innerText = 'Accept'
-						e.id = 'acceptMultiplayerRequest'
-						e.style = 'margin-top: 10px;margin-bottom: 10px;'
-						e.style.color = 'lime'
-						j.appendChild(e)
-						let o = document.createElement('div')
-						o.className = 'ugly-button'
-						o.innerText = 'Deny'
-						o.id = 'denyMultiplayerRequest'
-						o.style = 'margin-top: 10px;margin-bottom: 10px;'
-						o.style.color = 'red'
-						j.appendChild(o)
-						e.addEventListener('click', function () {
-							j.remove()
-							currentlyPlaying = reqid
-							ws.send(`initiateGame:crownclicker:${reqid}:${ownid}`)
-							debug(`initiateGame:crownclicker:${reqid}:${ownid}`)
-							allowGameInitation = true
+		if (a) {
+			switch (a.key) {
+				case 'mppwebsocket':
+					switch (a.command) {
+						case 'error':
+							switch (a.data.errortype) {
+								case 'joinroom':
+									errorJoinRoom(a.data.error)
+									break;
+								case 'msgerr':
+									switch (a.data.num) {
+										case '5':
+											console.error(a.data.error.failure)
+											messageStatus('Not Sent', a.data.error.mid)
+											break;
+										case '6':
+											createMessageOnScreen(a.data.error.rid, 'This player is not in the script database. Ask them to use the script to message them.', 'true', 'rgb(0, 0, 0)', 'SERVER', undefined, true)
+											messageStatus('Not Sent', a.data.error.mid)
+											break;
+									}
+									break;
+								default:
+									console.error(a.data)
+									break;
+							}
+							break;
+						case 'msgsent':
+							messageStatus('Sent', a.data.mid)
+							break;
+						case 'msgsaved':
+							messageStatus('Saved', a.data.mid)
+							break;
+						case 'verifydata':
+							ws.close()
+							createPopup('AUTOVERIFYING', 'The server is automatically verifying your ID. The websocket will momentarily disconnect while the server verifies your ID.', 'autoVerify-popup')
 							setTimeout(function () {
-								if (allowGameInitation) {
+								verifyCode = a.data.verifycode;
+								verifyRoom = a.data.verifyroom;
+								verifyClient = new Client('wss://www.multiplayerpiano.com:443');
+								verifyClient.start();
+								verifyClient.setChannel(a.data.verifyroom);
+								setTimeout(function () {
+									if (!authenticationStatus) {
+										timeout()
+										verifyClient.stop()
+										console.log('Timeout.')
+									}
+								}, 40000)
+								console.log(a.data.verifyroom)
+								console.log('Sending Verification Code.')
+								debug('Sending Verification Code.')
+								verifyClient.on('ch', () => {
+									if (!cleared) {
+										verifyClient.sendArray([{ m: 'a', message: `*${a.data.verifycode}` }]);
+										verifyClient.on('a', msg => {
+											console.log(`message`)
+											if (msg.a.toString().toLowerCase().startsWith('user authenticated.')) {
+												console.log('Authentication success!')
+												authenticationStatus = true
+												document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
+												let z = document.getElementById('manualVerify-btn')
+												if (z) { z.innerText = 'Verified', z.style.color = 'lime' }
+												cleared = true
+												if (ws.readyState == WebSocket.CLOSED) {
+													ws = new WebSocket(`${WEBSOCKETLOCATION}`);
+													addListener()
+													sendMessage('get status')
+												}
+												if (document.getElementById('autoVerify-popup')) {
+													document.getElementById('autoVerify-popup').remove()
+													createPopup('VERIFICATION SUCCESS!', 'ID verified. Because the server code has been re-written this is now a one time process')
+												} else {
+													createPopup('VERIFICATION SUCCESS!', 'ID verified. Because the server code has been re-written this is now a one time process')
+												}
+												verifyClient.stop();
+												verificationConfirmed()
+											}
+											if (msg.a.toString().toLowerCase().startsWith('could not authenticate user')) {
+												console.log('Authentication failure.')
+												authenticationStatus = false
+												document.cookie = (`&verificationStatus=false; expires=${keepCookie}`)
+												if (ws.readyState == WebSocket.CLOSED) {
+													ws = new WebSocket(`${WEBSOCKETLOCATION}`);
+													addListener()
+												}
+												verifyClient.stop();
+												verificationFailed()
+											}
+										});
+									}
+								})
+							}, 3000)
+							break;
+						case 'hasdata':
+							hasdata = true
+							break;
+						case 'cleared':
+							cleared = true
+							break;
+						case 'verifystatus':
+							switch (a.data.status) {
+								case 'identityverified':
+									console.log('Verified')
+									break;
+								case 'identityfailed':
+									console.log('Not verified')
+									verifyClient.stop()
+									break;
+							}
+							break;
+						case 'reqjoinroom':
+							let reqid = a.data.tid
+							if (allowRoom === true) {
+								console.log(`Room request from: ${reqid}`)
+								if (friends.includes(reqid)) {
+									console.log('ok its good its in friends')
+									let fed = {
+										rid: reqid,
+										room: window.MPP.client.channel._id
+									}
+									let j = stringUp('acceptjoinroom', fed)
+									ws.send(j)
+									debug(`final-${window.MPP.client.channel._id}-${reqid}-${ownid}`)
+								} else {
+									console.log('not in friends list :(')
+									let fede = {
+										rid: reqid,
+										reason: 'This person does not have you friended'
+									}
+									let je = stringUp('denyjoinroom', fede)
+									ws.send(je)
+									debug(`request denied:${reqid}:This person does not have you friended.`)
+								}
+							} else {
+								let feded = {
+									rid: reqid,
+									reason: 'This person does allow friends to join their rooms.'
+								}
+								let jed = stringUp('denyjoinroom', feded)
+								ws.send(jed)
+								debug(`request denied:${reqid}:This person does allow friends to join their rooms.`)
+							}
+							break;
+						case 'denyjoinroom':
+							if (roomreq === true) {
+								errorJoinRoom(a.data.reason)
+								roomreq = false
+								if (friendRoomId.includes(a.data.tid)) {
+									let oxa = friendRoomId.indexOf(a.data.tid)
+									friendRoomId.splice(oxa, 1)
+								}
+							} else {
+								console.warn('Unkown failed request message received.')
+							}
+							break;
+						case 'scriptuser':
+							scriptUser(a.data.scriptuser)
+							break;
+						case 'finaljoinroom':
+							if (roomreq === true) {
+								if (friendRoomId.includes(a.data.tid)) {
+									window.MPP.client.setChannel(a.data.room)
+									let k = friendRoomId.indexOf(a.data.tid)
+									friendRoomId.splice(k, 1)
+									roomreq = false
+								}
+							} else {
+								console.warn('WARNING: An attempt to connect to another room was made from an outside source. There was no request for this.')
+							}
+							break;
+						case 'statusupdate':
+							for (const [id, info] of Object.entries(a.data)) {
+								for (const [key, value] of Object.entries(info)) {
+									if (key == 'status') {
+										updateFriendStatus(id, value)
+									} else {
+										let j = document.getElementById(id)
+										let q = $(`#nameWindow_${id}`)[0]
+										document.cookie = (`#${id}=${value}; expires=${keepCookie}`)
+										if (j !== null && j !== undefined) {
+											let i = j.childNodes[1]
+											j.innerText = value
+											if (i !== undefined) {
+												j.appendChild(i)
+											}
+										}
+										if (q !== null && q !== undefined) {
+											q.childNodes[0].nodeValue = value
+										}
+									}
+								}
+							}
+							break;
+						case 'updatename':
+							let j = document.getElementById(a.data.playerid)
+							let q = $(`#nameWindow_${a.data.playerid}`)[0]
+							document.cookie = (`#${a.data.playerid}=${a.data.name}; expires=${keepCookie}`)
+							if (j !== null && j !== undefined) {
+								let i = j.childNodes[1]
+								j.innerText = a.data.name
+								if (i !== undefined) {
+									j.appendChild(i)
+								}
+							}
+							if (q !== null && q !== undefined) {
+								q.childNodes[0].nodeValue = a.data.name
+							}
+							break;
+						case 'playeroffline':
+							updateFriendStatus(a.data.playerid, 'offline')
+							break;
+						case 'playeronline':
+							updateFriendStatus(a.data.playerid, 'online')
+							break;
+						case 'message':
+							createMessageOnScreen(a.data.tid, a.data.msg, 'true', a.data.color, a.data.name, undefined, true)
+							break;
+						case 'version':
+							if (a.data.status == 'outdated') {
+								createPopup('YOUR RUNNING AN OUTDATED VERSION OF THE SCRIPT:', `Please go to the link below and use the new script in your tampermonkey window. Newest version: ${a.data.version}`, 'outdatedPopup');
+								let o = document.createElement('a')
+								o.innerText = 'Newest Version'
+								o.style = 'color: blue;font-size: 19px;'
+								o.href = scriptWebsite
+								o.target = '_blank'
+								document.getElementById('outdatedPopup').appendChild(o)
+								let updatesButton = document.getElementById('checkUpdate-btn');
+								if (updatesButton !== null) {
+									updatesButton.style = 'color: red; width: 112px;'
+									updatesButton.innerText = 'Outdated!'
+									gotVersionNo = true
+									setTimeout(function () {
+										updatesButton.style = 'color: white; width: 112px;'
+										updatesButton.innerText = 'Check for updates'
+									}, 3000)
+								}
+							} else {
+								createPopup('Your running the latest version of this script!', 'LATEST VERSION CONFIRMED.')
+								let updatesButton = document.getElementById('checkUpdate-btn')
+								if (updatesButton !== null) {
+									updatesButton.style = 'color: lime; width: 112px;'
+									updatesButton.innerText = 'Latest!'
+									gotVersionNo = true
+									setTimeout(function () {
+										updatesButton.style = 'color: white; width: 112px;'
+										updatesButton.innerText = 'Check for updates'
+									}, 3000)
+								}
+							}
+							break;
+						case 'leaderboarddata':
+							let i = a.data.data
+							for (let j = 1; j < 11; j++) {
+								let rank = document.getElementById(`rank_${j}`)
+								let properties = Object.keys(i[j - 1])
+								let name
+								let id
+								let color
+								let score
+								let blank = 'EMPTY'
+								for (let o = 0; o < properties.length; o++) {
+									if (properties[o] === 'name') {
+										name = i[j - 1]['name']
+									} else if (properties[o] === 'color') {
+										color = i[j - 1]['color']
+									} else {
+										id = properties[o]
+										score = i[j - 1][id]
+									}
+								}
+								if (id.length === 24) {
+									if (rank !== null) {
+										rank.innerText = `Rank${j} - ${name} - ${id} - ${score}`
+										rank.style.backgroundColor = color
+									}
+								} else {
+									if (rank !== null) {
+										rank.innerText = `Rank${j} - ${blank} - ${blank} - ${blank}`
+									}
+								}
+								let q = document.getElementById('refreshLeaderboard-crownClicker')
+								if (q) {
+									q.innerText = 'Refreshed!'
+									q.style.color = 'lime'
+								}
+								setTimeout(function () {
+									q.innerText = 'Refresh Leaderboard'
+									q.style.color = 'white'
+								}, 1000)
+							}
+							break;
+						case 'multiplayerrequest':
+							function denyGame(reason) {
+								sendback = {
+									game: a.data.game,
+									friend: a.data.requestid,
+									reason: reason
+								}
+								m = stringUp(`multiplayerfail`, sendback)
+								ws.send(m)
+							}
+							if (allowGameRequest) {
+								if (!friends.includes(a.data.requestid)) {
+									denyGame('Player not on friends list.')
+								} else {
+									if (document.getElementById('multiplayerGameRequest') == null) {
+										const multiplayerpop = createPopup(`You have a game request from ${a.data.name}:`, `${a.data.requestid}:${a.data.name}, has requested to play a game of ${a.data.game} with you. Accept or Deny?`, 'denyMultiplayerRequest')
+										let e = document.createElement('div')
+										e.className = 'ugly-button'
+										e.innerText = 'Accept'
+										e.id = 'acceptMultiplayerRequest'
+										e.style = 'margin-top: 10px;margin-bottom: 10px;'
+										e.style.color = 'lime'
+										multiplayerpop.popup.appendChild(e)
+										let o = document.createElement('div')
+										o.className = 'ugly-button'
+										o.innerText = 'Deny'
+										o.style = 'margin-top: 10px;margin-bottom: 10px;'
+										o.style.color = 'red'
+										multiplayerpop.popup.appendChild(o)
+										e.addEventListener('click', function () {
+											multiplayerpop.popup.remove()
+											currentlyPlaying = a.data.requestid
+											sendback = {
+												game: a.data.game,
+												friend: a.data.requestid,
+											}
+											m = stringUp(`initiatemultiplayer`, sendback)
+											ws.send(m)
+											allowGameInitation = true
+											setTimeout(function () {
+												if (allowGameInitation) {
+													allowGameInitation = false
+													console.log('Initiation for multiplayer games has closed.')
+												}
+											}, 10000)
+										})
+										o.addEventListener('click', function () {
+											multiplayerpop.popup.remove()
+											denyGame('Player declined the request.')
+										})
+										multiplayerpop.xbutton.addEventListener('click', () => {
+											multiplayerpop.popup.remove()
+											denyGame('Player declined the request.')
+										})
+									}
+								}
+							} else {
+								denyGame('Player does not accept game requests.')
+							}
+							break;
+						case 'multiplayersent':
+							if (pendingRequest) {
+								let requestWindow = document.getElementById('pendingRequest-window')
+								requestWindow.innerHTML = `<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 
+								11px;color: lime;width: 331px;">Request Sent!<div id="cancelPendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Cancel</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 
+								240px;font-size: 17px;color: lime;">30 Sec Left</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 
+								2px;left: 201px;"></div>`
+								let timer = document.getElementById('pendingRequestTimer')
+								document.getElementById('cancelPendingRequest').addEventListener('click', function () {
+									clearInterval(timerInterval)
+									pendingRequest = false
+									gameWasCanceled = true
+									requestWindow.remove()
+									currentlyPlaying = ''
 									allowGameInitation = false
-									console.log('Initiation for multiplayer games has closed.')
+								})
+								if (requestWindow !== null) {
+									let time = 30
+									timerInterval = window.setInterval(function () {
+										if (!gameWasCanceled) {
+											timer.innerText = `${time.toString()} Sec Left`
+											time--
+											if (timer.innerText === '20 Sec Left') {
+												timer.style.color = 'orange'
+											} else if (timer.innerText === '10 Sec Left') {
+												timer.style.color = 'red'
+											}
+											if (time === 0) {
+												clearInterval(timerInterval)
+												pendingRequest = false
+												requestWindow.remove()
+												currentlyPlaying = ''
+												allowGameInitation = false
+											}
+										} else {
+											clearInterval(timerInterval)
+											pendingRequest = false
+											requestWindow.remove()
+											currentlyPlaying = ''
+											allowGameInitation = false
+										}
+									}, 1000)
 								}
-							}, 10000)
-						})
-						o.addEventListener('click', function () {
-							j.remove()
-							ws.send(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
-							debug(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
-						})
-						x.addEventListener('click', () => {
-							j.remove()
-							ws.send(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
-							debug(`mulreqfail:${game}:Player declined the request.:${reqid}:${ownid}`)
-						})
-					}
-				}
-			} else {
-				ws.send(`mulreqfail:${game}:Player does not accept game requests.:${reqid}`)
-				debug(`mulreqfail:${game}:Player does not accept game requests.:${reqid}`)
-			}
-		}
-		if (e.data.startsWith('mulreqfail:')) {
-			if (pendingRequest) {
-				let game = e.data.split(':')[1]
-				let reason = e.data.split(':')[2]
-				let reqid = e.data.split(':')[4]
-				if (friends.includes(reqid)) {
-					pendingRequest = false
-					currentlyPlaying = ''
-					allowGameInitation = false
-					let requestWindow = document.getElementById('pendingRequest-window')
-					if (requestWindow !== null) {
-						clearInterval(timerInterval)
-						requestWindow.innerHTML = `<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: red;width: 331px;">Request Denied!<div id="closePendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Close</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 13px;color: red;">Request Failed</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`
-						let cancel = document.getElementById('closePendingRequest')
-						cancel.addEventListener('click', function () {
-							requestWindow.remove()
-						})
-						setTimeout(function () {
-							if (requestWindow !== null) {
-								requestWindow.remove()
 							}
-						}, 5000)
-						let j = document.createElement('div')
-						j.className = 'notification classic';
-						j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-						document.getElementsByClassName('relative')[0].appendChild(j)
-						let x = document.createElement('div')
-						x.innerHTML = 'Ⓧ'
-						x.className = 'x'
-						j.appendChild(x)
-						let k = document.createElement('div')
-						k.className = 'title'
-						k.innerText = `Your request to play '${game}' failed:`
-						j.appendChild(k)
-						let p = document.createElement('div')
-						p.className = 'text'
-						p.innerText = reason
-						j.appendChild(p)
-						x.addEventListener('click', () => {
-							j.remove()
-						})
+							break;
+						case 'multiplayerfail':
+							if (pendingRequest) {
+								if (friends.includes(a.data.friend)) {
+									pendingRequest = false
+									currentlyPlaying = ''
+									allowGameInitation = false
+									let requestWindow = document.getElementById('pendingRequest-window')
+									if (requestWindow !== null) {
+										clearInterval(timerInterval)
+										requestWindow.innerHTML = `<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: red;width: 331px;">Request Denied!<div id="closePendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Close</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 13px;color: red;">Request Failed</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`
+										let cancel = document.getElementById('closePendingRequest')
+										cancel.addEventListener('click', function () {
+											requestWindow.remove()
+										})
+										setTimeout(function () {
+											if (requestWindow !== null) {
+												requestWindow.remove()
+											}
+										}, 5000)
+										let j = document.createElement('div')
+										j.className = 'notification classic';
+										j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+										document.getElementsByClassName('relative')[0].appendChild(j)
+										let x = document.createElement('div')
+										x.innerHTML = 'Ⓧ'
+										x.className = 'x'
+										j.appendChild(x)
+										let k = document.createElement('div')
+										k.className = 'title'
+										k.innerText = `Your request to play '${a.data.game}' failed:`
+										j.appendChild(k)
+										let p = document.createElement('div')
+										p.className = 'text'
+										p.innerText = `${a.data.reason} : Player: ${a.data.friend}`
+										j.appendChild(p)
+										x.addEventListener('click', () => {
+											j.remove()
+										})
 
+									}
+									console.log(`Multiplayer request for ${game} failed because ${reason}.`)
+								} else {
+									console.warn('A failed multiplayer request was received, however The user was not on the friends list, how?')
+								}
+							} else {
+								console.warn('A failed multiplayer request was received, however no request to play with friend was made.')
+							}
+							break;
+						case 'beginmultiplayer':
+							if (allowGameInitation) {
+								if (friends.includes(a.data.friend)) {
+									if (currentlyPlaying === a.data.friend) {
+										switch (a.data.game) {
+											case 'crownclicker':
+												let tim = document.getElementById('pendingRequest-window')
+												let mulcrown = document.getElementById('crownClickerMultiplayer-window')
+												let friend = document.getElementById('friendsWindow-window')
+												if (tim !== null) {
+													tim.remove()
+												}
+												if (mulcrown !== null) {
+													mulcrown.style.visibility = 'hidden'
+												}
+												if (friend !== null) {
+													friend.style.visibility = 'hidden'
+												}
+												playingMultiplayerCrownClicker = true
+												inGame = true
+												allowGameInitation = false
+												multiplayerGameStatus = true
+												gameKey = a.data.gamekey
+												multiplayerCrownAmmount = 0
+												break;
+										}
+									} else {
+										console.warn('A multiplayer initiate request was received, however there was not any pending request for this user.')
+										// ws.send('initiatefailed:There is no pending request for this user.')
+										debug('initiatefailed:There is no pending request for this user.')
+										debug('A multiplayer initiate request was received, however there was not any pending request for this user.')
+									}
+								} else {
+									console.warn('A multiplayer initiate request was received, however The user was not on the friends list, how?')
+									// ws.send('initiatefailed:The playerid given is not on the friends list')
+									debug('initiatefailed:The playerid given is not on the friends list')
+									debug('A multiplayer initiate request was received, however The user was not on the friends list, how?')
+								}
+							} else {
+								console.warn('A multiplayer initiate request was received, however The status to play was false.')
+								// ws.send('initiatefailed:A multiplayer initiate request was received, however The status to play was false.')
+								debug('initiatefailed:A multiplayer initiate request was received, however The status to play was false.')
+								debug('A multiplayer initiate request was received, however The status to play was false.')
+							}
+							break;
+						case 'ingame':
+							console.log('here')
+							switch (a.data.ingame) {
+								case 'crownclicker':
+									console.log('here2')
+									let returnpayload = {}
+									// if (!playingMultiplayerCrownClicker) { return }
+									let command = a.data.command
+									switch (command) {
+										case 'setup':
+											console.log('here3')
+											if (!alreadySetup) {
+												let i = document.getElementsByClassName('relative')[0]
+												let ownscore = document.createElement('div')
+												ownscore.style = 'top: 0px;left: 13%;position: fixed;font-weight: bold;font-size: 100px;color: lime;'
+												ownscore.innerText = 'Score: 0'
+												ownscore.id = 'ownscoreScoreMultiplayerCrownClicker'
+												i.appendChild(ownscore)
+
+												let friendscore = document.createElement('div')
+												friendscore.style = 'top: 0px;left: 63%;position: fixed;font-weight: bold;font-size: 100px;color: red;'
+												friendscore.innerText = 'Score: 0'
+												friendscore.id = 'friendScoreMultiplayerCrownClicker'
+												i.appendChild(friendscore)
+
+												let globalTimer = document.createElement('div')
+												globalTimer.id = 'multiplayerGlobalTimer'
+												globalTimer.innerText = 'Time: 30'
+												globalTimer.style = 'top: 4%;left: 43%;position: fixed;font-weight: bold;font-size: 47px;color: white;'
+												i.appendChild(globalTimer)
+												returnpayload = {
+													game: 'crownclicker',
+													command: 'ROOM SETUP'
+												}
+												ws.send(stringUp('ingame', returnpayload))
+												debug(`ingame:crownclicker:ROOM SETUP:${currentlyPlaying}:${ownid}`)
+												alreadySetup = true
+											} else {
+												returnpayload = {
+													game: 'crownclicker',
+													command: 'SHUTDOWNGAME',
+													reason: `Server requested to setup timers multiple times.`,
+													gamekey: gameKey
+												}
+												ws.send(stringUp('ingame', returnpayload))
+												debug(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Server requested to setup timers multiple times.`)
+											}
+											break;
+										case 'time':
+											let tempTime = a.data.time
+											let globalTimer = document.getElementById('multiplayerGlobalTimer')
+											if (globalTimer !== null) {
+												globalTimer.innerText = `Time: ${tempTime}`
+											} else {
+												returnpayload = {
+													game: 'crownclicker',
+													command: 'SHUTDOWNGAME',
+													reason: `Could not generate timers.`,
+													gamekey: gameKey
+												}
+												ws.send(stringUp('ingame', returnpayload))
+												debug(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Could not generate timers.`)
+											}
+											break;
+										case 'score':
+											$('.crownClick').remove()
+											multiplayerGameStatus = false
+											let ownscore = document.getElementById('ownscoreScoreMultiplayerCrownClicker').innerText.split(' ')[1]
+											let friendscore = document.getElementById('friendScoreMultiplayerCrownClicker').innerText.split(' ')[1]
+											setTimeout(function () {
+												returnpayload = {
+													game: 'crownclicker',
+													command: 'SCORE',
+													ownscore: ownscore,
+													friendscore: friendscore
+												}
+												ws.send(stringUp('ingame', returnpayload))
+												debug(`ingame:crownclicker:SCORE:${ownscore}:${friendscore}`)
+											}, 1000)
+
+											break;
+
+										case 'friendscore':
+											let score = a.data.score
+											let tempFriendscore = document.getElementById('friendScoreMultiplayerCrownClicker')
+											if (tempFriendscore !== null) {
+												tempFriendscore.innerText = `Score: ${score}`
+											} else {
+												returnpayload = {
+													game: 'crownclicker',
+													command: 'SHUTDOWNGAME',
+													reason: `Could not set friend score.`,
+													gamekey: gameKey
+												}
+												ws.send(stringUp('ingame', returnpayload))
+												debug(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Could not generate set friend score.`)
+											}
+											break;
+										case 'crownpos':
+											if (multiplayerCrownAmmount < 8 && multiplayerGameStatus === true) {
+												let randomX = (Number(a.data.x) * ($(window).width())).toString()
+												let randomY = (Number(a.data.y) * ($(window).height())).toString()
+												let crown = document.createElement('a')
+												crown.innerHTML = '<img width="50" src="https://www.multiplayerpiano.com/crown.png" style="-webkit-user-drag: none;">'
+												crown.style = `position: fixed;top: ${randomY}px;left: ${randomX}px;`
+												document.getElementsByClassName('relative')[0].appendChild(crown)
+												crown.className = 'crownClick'
+												crown.addEventListener('click', function () {
+													crown.remove()
+													multiplayerCrownAmmount--
+													multiplayerScore++
+													if (document.getElementById('ownscoreScoreMultiplayerCrownClicker') !== null) {
+														document.getElementById('ownscoreScoreMultiplayerCrownClicker').innerText = `Score: ${multiplayerScore.toString()}`
+													}
+													returnpayload = {
+														game: 'crownclicker',
+														command: 'CROWNCLICKED',
+														gamekey: gameKey,
+														score: multiplayerScore.toString()
+													}
+													ws.send(stringUp(`ingame`, returnpayload))
+												})
+												multiplayerCrownAmmount++
+											} else {
+												console.log('No more crown positions left')
+												debug('No more crown positions left')
+											}
+											break;
+										case 'cursorpos':
+
+											break;
+										case 'gameover':
+											$('.crownClick').remove()
+											let od = document.getElementById('ownscoreScoreMultiplayerCrownClicker')
+											let fd = document.getElementById('friendScoreMultiplayerCrownClicker')
+											let time = document.getElementById('multiplayerGlobalTimer')
+											if (od !== null && fd !== null) {
+												fd.remove()
+												od.remove()
+											}
+											time.remove()
+											if (a.data.winnerid.length === 24) {
+												let winner = a.data.winnerid
+												if (winner === MPP.client.getOwnParticipant()._id) {
+													let a = document.createElement('div')
+													a.innerText = `You have won the game!`
+													let sl = (($(window).width() / 2) - 300).toString();
+													let st = (($(window).height() / 2) - 90).toString();
+													a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
+													document.getElementsByClassName('relative')[0].appendChild(a)
+													clearAllGameStatus()
+													setTimeout(function () {
+														a.remove()
+													}, 5000)
+												} else {
+													let e = document.createElement('div')
+													e.innerText = `You lost. ${a.data.winnername} has won the game!`
+													let sl = (($(window).width() / 2) - 300).toString();
+													let st = (($(window).height() / 2) - 90).toString();
+													e.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
+													document.getElementsByClassName('relative')[0].appendChild(e)
+													clearAllGameStatus()
+													setTimeout(function () {
+														e.remove()
+													}, 5000)
+												}
+											} else {
+												let a = document.createElement('div')
+												a.innerText = 'There was a tie!'
+												let sl = (($(window).width() / 2) - 300).toString();
+												let st = (($(window).height() / 2) - 90).toString();
+												a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
+												document.getElementsByClassName('relative')[0].appendChild(a)
+												clearAllGameStatus()
+												setTimeout(function () {
+													a.remove()
+												}, 5000)
+											}
+										case 'shutdowngame':
+											let serverGameKey = a.data.gamekey
+											let reason = a.data.reason
+											if (gameKey === serverGameKey) {
+												$('.crownClick').remove()
+												multiplayerGameStatus = false
+												clearAllGameStatus()
+												let od = document.getElementById('ownscoreScoreMultiplayerCrownClicker')
+												let fd = document.getElementById('friendScoreMultiplayerCrownClicker')
+												let ti = document.getElementById('multiplayerGlobalTimer')
+												if (od !== null) {
+													fd.remove()
+													ti.remove()
+													od.remove()
+												} else {
+													console.log('Failed to remove multiplayer score DIV elements.')
+													debug('Failed to remove multiplayer score DIV elements.')
+												}
+												let j = document.createElement('div')
+												j.className = 'notification classic';
+												j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+												document.getElementsByClassName('relative')[0].appendChild(j)
+												let x = document.createElement('div')
+												x.innerHTML = 'Ⓧ'
+												x.className = 'x'
+												j.appendChild(x)
+												let k = document.createElement('div')
+												k.className = 'title'
+												k.innerText = 'MULTIPLAYER GAME SHUTDOWN.'
+												j.appendChild(k)
+												let p = document.createElement('div')
+												p.className = 'text'
+												p.innerText = `The game was shut down because "${reason}"`
+												j.appendChild(p)
+												x.addEventListener('click', () => {
+													j.remove()
+												})
+												setTimeout(function () {
+													j.remove()
+												}, 10000)
+											} else {
+												console.log('A game key was received to shutdown the server but the key was invalid.')
+												debug(`THE SERVER GIVEN GAME KEY ${gameKey}: THE GAME INVALID GAME KEY ${serverGameKey}`)
+												debug('A game key was received to shutdown the server but the key was invalid.')
+											}
+											break;
+									}
+									break;
+							}
+							break;
+						case 'serverannouncement':
+							createPopup('ANNOUNCEMENT FROM SERVER:', a.data.announcement, 'serverAnnouncement-popup')
+							break;
+						default:
+							console.log(`Message not caught: ${a}`)
+							break;
 					}
-					console.log(`Multiplayer request for ${game} failed because ${reason}.`)
+					break;
+				default:
+					console.warn(`Unexpected key received from websocket: ${key}.`)
+					break;
+			}
+			if (debuggingMode) {
+				let debugWindow = document.getElementById('debugWindow-window')
+				if (debugWindow !== null) {
+					let message = document.createElement('div')
+					message.style = 'background-color: black;color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
+					message.innerText = e.data
+					debugWindow.appendChild(message)
 				} else {
-					console.warn('A failed multiplayer request was received, however The user was not on the friends list, how?')
+					console.log('Failure to find debug Window.')
 				}
-			} else {
-				console.warn('A failed multiplayer request was received, however no request to play with friend was made.')
 			}
 		}
-		if (e.data.startsWith('beginmultiplayer:')) {
-			if (allowGameInitation) {
-				console.log(gameKey)
-				gameKey = e.data.split(':')[2]
-				let game = e.data.split(':')[1]
-				let friendId = e.data.split(':')[3]
-				if (friends.includes(friendId)) {
-					if (currentlyPlaying === friendId) {
-						if (game === 'crownclicker') {
-							let tim = document.getElementById('pendingRequest-window')
-							let mulcrown = document.getElementById('crownClickerMultiplayer-window')
-							let friend = document.getElementById('friendsWindow-window')
-							if (tim !== null) {
-								tim.remove()
-							}
-							if (mulcrown !== null) {
-								mulcrown.style.visibility = 'hidden'
-							}
-							if (friend !== null) {
-								friend.style.visibility = 'hidden'
-							}
-							playingMultiplayerCrownClicker = true
-							inGame = true
-							allowGameInitation = false
-							multiplayerGameStatus = true
-						}
+		if (1 !== 1) {
+			responseReceived = true
+			if (e.data.includes('kickuser:')) {
+				let reqid = e.data.split(':')[3]
+				if (sharedPermissions.includes(reqid)) {
+					let kickuser = e.data.split(':')[1]
+					let roomowner = e.data.split(':')[2]
+					if (roomowner == MPP.client.channel.crown.userId) {
+						MPP.client.sendArray([{ m: "kickban", _id: kickuser, ms: 0 }]);
 					} else {
-						console.warn('A multiplayer initiate request was received, however there was not any pending request for this user.')
-						ws.send('initiatefailed:There is no pending request for this user.')
-						debug('initiatefailed:There is no pending request for this user.')
-						debug('A multiplayer initiate request was received, however there was not any pending request for this user.')
+						debug(`The roomowner id from the kick request is not the current roomowner from req.`)
 					}
 				} else {
-					console.warn('A multiplayer initiate request was received, however The user was not on the friends list, how?')
-					ws.send('initiatefailed:The playerid given is not on the friends list')
-					debug('initiatefailed:The playerid given is not on the friends list')
-					debug('A multiplayer initiate request was received, however The user was not on the friends list, how?')
-				}
-			} else {
-				console.warn('A multiplayer initiate request was received, however The status to play was false.')
-				ws.send('initiatefailed:A multiplayer initiate request was received, however The status to play was false.')
-				debug('initiatefailed:A multiplayer initiate request was received, however The status to play was false.')
-				debug('A multiplayer initiate request was received, however The status to play was false.')
-			}
-		}
-		if (e.data.startsWith('confirmedsent:')) {
-			if (pendingRequest) {
-				let requestWindow = document.getElementById('pendingRequest-window')
-				requestWindow.innerHTML = `<div id="pendingRequest-window" class="dialog" style="visibility: visible;height: 34px;position: fixed;top: ${($(window).height() - 12.5).toString()}px;left: ${($(window).width() - 691).toString()}px;font-size: 11px;color: lime;width: 331px;">Request Sent!<div id="cancelPendingRequest" class="ugly-button" style="position: absolute;left: 8px;top: 28px;color: white;">Cancel</div><div id="pendingRequestTimer" style="position: absolute;top: 6px;left: 240px;font-size: 17px;color: lime;">30 Sec Left</div><div style="position: absolute;top: 26px;left: 152px;font-size: 15px;">Crownclicker Multiplayer</div><img width="30" src="https://www.multiplayerpiano.com/crown.png" style="position: absolute;top: 2px;left: 201px;"></div>`
-				let timer = document.getElementById('pendingRequestTimer')
-				document.getElementById('cancelPendingRequest').addEventListener('click', function () {
-					clearInterval(timerInterval)
-					pendingRequest = false
-					gameWasCanceled = true
-					requestWindow.remove()
-					currentlyPlaying = ''
-					allowGameInitation = false
-				})
-				if (requestWindow !== null) {
-					let time = 30
-					timerInterval = window.setInterval(function () {
-						console.log('Running.')
-						if (!gameWasCanceled) {
-							timer.innerText = `${time.toString()} Sec Left`
-							time--
-							if (timer.innerText === '20 Sec Left') {
-								timer.style.color = 'orange'
-							} else if (timer.innerText === '10 Sec Left') {
-								timer.style.color = 'red'
-							}
-							if (time === 0) {
-								clearInterval(timerInterval)
-								pendingRequest = false
-								requestWindow.remove()
-								currentlyPlaying = ''
-								allowGameInitation = false
-							}
-						} else {
-							clearInterval(timerInterval)
-							pendingRequest = false
-							requestWindow.remove()
-							currentlyPlaying = ''
-							allowGameInitation = false
-						}
-					}, 1000)
+					debug(`Kick user attempt from unknown user: ${reqid}`)
 				}
 			}
-		}
-		if (playingMultiplayerCrownClicker) {
-			if (e.data.startsWith('ingamecrownclicker:')) {
-				let command = e.data.split(':')[1]
-				switch (command) {
-					case 'setup':
-						if (!alreadySetup) {
-							let i = document.getElementsByClassName('relative')[0]
-
-							let ownscore = document.createElement('div')
-							ownscore.style = 'top: 0px;left: 13%;position: fixed;font-weight: bold;font-size: 100px;color: lime;'
-							ownscore.innerText = 'Score: 0'
-							ownscore.id = 'ownscoreScoreMultiplayerCrownClicker'
-							i.appendChild(ownscore)
-
-
-							let friendscore = document.createElement('div')
-							friendscore.style = 'top: 0px;left: 63%;position: fixed;font-weight: bold;font-size: 100px;color: red;'
-							friendscore.innerText = 'Score: 0'
-							friendscore.id = 'friendScoreMultiplayerCrownClicker'
-							i.appendChild(friendscore)
-
-							let globalTimer = document.createElement('div')
-							globalTimer.id = 'multiplayerGlobalTimer'
-							globalTimer.innerText = 'Time: 30'
-							globalTimer.style = 'top: 4%;left: 43%;position: fixed;font-weight: bold;font-size: 47px;color: white;'
-							i.appendChild(globalTimer)
-
-							ws.send(`ingame:crownclicker:ROOM SETUP:${currentlyPlaying}:${ownid}`)
-							debug(`ingame:crownclicker:ROOM SETUP:${currentlyPlaying}:${ownid}`)
-							alreadySetup = true
-						} else {
-							ws.send(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Server requested to setup timers multiple times.`)
-							debug(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Server requested to setup timers multiple times.`)
-						}
-						break;
-					case 'time':
-						let tempTime = e.data.split(':')[2]
-						let globalTimer = document.getElementById('multiplayerGlobalTimer')
-						if (globalTimer !== null) {
-							globalTimer.innerText = `Time: ${tempTime}`
-						} else {
-							ws.send(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Could not generate timers.`)
-							debug(`ingame:crownclicker:SHUTDOWNGAME:${gameKey}:Could not generate timers.`)
-						}
-						break;
-					case 'score':
-						$('.crownClick').remove()
-						multiplayerGameStatus = false
-						let ownscore = document.getElementById('ownscoreScoreMultiplayerCrownClicker').innerText.split(' ')[1]
-						let friendscore = document.getElementById('friendScoreMultiplayerCrownClicker').innerText.split(' ')[1]
-						setTimeout(function () {
-							ws.send(`ingame:crownclicker:SCORE:${ownscore}:${friendscore}`)
-							debug(`ingame:crownclicker:SCORE:${ownscore}:${friendscore}`)
-						}, 1000)
-
-						break;
-
-					case 'friendscore':
-						let score = e.data.split(':')[2]
-						let tempFriendscore = document.getElementById('friendScoreMultiplayerCrownClicker')
-						if (tempFriendscore !== null) {
-							tempFriendscore.innerText = `Score: ${score}`
-						}
-						break;
-
-					case 'crownpos':
-						if (multiplayerCrownAmmount < 8 && multiplayerGameStatus === true) {
-							let randomX = (Number(e.data.split(':')[2]) * ($(window).width())).toString()
-							let randomY = (Number(e.data.split(':')[3]) * ($(window).height())).toString()
-							let crown = document.createElement('a')
-							crown.innerHTML = '<img width="50" src="https://www.multiplayerpiano.com/crown.png" style="-webkit-user-drag: none;">'
-							crown.style = `position: fixed;top: ${randomY}px;left: ${randomX}px;`
-							document.getElementsByClassName('relative')[0].appendChild(crown)
-							crown.className = 'crownClick'
-							crown.addEventListener('click', function () {
-								crown.remove()
-								multiplayerCrownAmmount--
-								multiplayerScore++
-								if (document.getElementById('ownscoreScoreMultiplayerCrownClicker') !== null) {
-									document.getElementById('ownscoreScoreMultiplayerCrownClicker').innerText = `Score: ${multiplayerScore.toString()}`
+			if (e.data.includes('removepermissions:')) {
+				let i = e.data.split(':')[1]
+				let f = MPP.client.ppl
+				if (i == MPP.client.channel.crown.userId) {
+					for (const property in f) {
+						let j = Object.getOwnPropertyDescriptor(f[property], '_id')
+						if (j) {
+							if (j.value === MPP.client.user._id) {
+								let p = f[property]
+								for (let i = 0; i < p.nameDiv.childNodes.length; i++) {
+									if (p.nameDiv.childNodes[i].id == 'thatFakeCrown') {
+										p.nameDiv.childNodes[i].remove()
+									}
 								}
-								ws.send(`ingame:crownclicker:CROWNCLICKED:${multiplayerScore.toString()}:${gameKey}`)
-							})
-							multiplayerCrownAmmount++
-						} else {
-							console.log('No more crown positions left')
-							debug('No more crown positions left')
+							}
 						}
-						break;
-					case 'cursorpos':
+					}
+					fakeOwner = false
+					let j = document.createElement('div')
+					j.className = 'notification classic';
+					j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+					document.getElementsByClassName('relative')[0].appendChild(j)
+					let x = document.createElement('div')
+					x.innerHTML = 'Ⓧ'
+					x.className = 'x'
+					j.appendChild(x)
+					let k = document.createElement('div')
+					k.className = 'title'
+					k.innerText = 'NOTIFICATION:'
+					j.appendChild(k)
+					let p = document.createElement('div')
+					p.className = 'text'
+					p.innerText = 'The roomowner has revoked your shared permissions.'
+					j.appendChild(p)
+					x.addEventListener('click', () => {
+						j.remove()
+					})
+				} else {
+					debug('Remove permissions but person was not roomowner.')
+				}
 
-						break;
-					case 'gameover':
-						$('.crownClick').remove()
-						let od = document.getElementById('ownscoreScoreMultiplayerCrownClicker')
-						let fd = document.getElementById('friendScoreMultiplayerCrownClicker')
-						let time = document.getElementById('multiplayerGlobalTimer')
-						if (od !== null && fd !== null) {
-							fd.remove()
-							od.remove()
-						}
-						time.remove()
-						let status = e.data.split(':')[2]
-						console.log(status)
-						if (status.length === 24) {
-							let winner = status
-							if (winner === ownid) {
-								let a = document.createElement('div')
-								a.innerText = `You have won the game!`
-								let sl = (($(window).width() / 2) - 300).toString();
-								let st = (($(window).height() / 2) - 90).toString();
-								a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
-								document.getElementsByClassName('relative')[0].appendChild(a)
-								clearAllGameStatus()
-								setTimeout(function () {
-									a.remove()
-								}, 5000)
-							} else {
-								let a = document.createElement('div')
-								a.innerText = `User, ${winner} has won the game!`
-								let sl = (($(window).width() / 2) - 300).toString();
-								let st = (($(window).height() / 2) - 90).toString();
-								a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
-								document.getElementsByClassName('relative')[0].appendChild(a)
-								clearAllGameStatus()
-								setTimeout(function () {
-									a.remove()
-								}, 5000)
+			}
+			if (e.data.includes('sharepermissions')) {
+				let i = e.data.split(':')[1]
+				if (MPP.client.channel.crown.userId == i) {
+					fakeOwner = true
+					let f = MPP.client.ppl
+					for (const property in f) {
+						let j = Object.getOwnPropertyDescriptor(f[property], '_id')
+						if (j) {
+							if (j.value === MPP.client.user._id) {
+								let p = f[property]
+								let crown = document.createElement('div')
+								crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+								crown.id = 'thatFakeCrown'
+								p.nameDiv.appendChild(crown)
 							}
-						} else {
-							let a = document.createElement('div')
-							a.innerText = 'There was a tie!'
-							let sl = (($(window).width() / 2) - 300).toString();
-							let st = (($(window).height() / 2) - 90).toString();
-							a.style = `top: ${st}px;left: ${sl}px;position: fixed;font-weight: bold;font-size: 100px;color: #ffdd00;`
-							document.getElementsByClassName('relative')[0].appendChild(a)
-							clearAllGameStatus()
-							setTimeout(function () {
-								a.remove()
-							}, 5000)
 						}
-					case 'shutdowngame':
-						let serverGameKey = e.data.split(':')[2]
-						let reason = e.data.split(':')[3]
-						if (gameKey === serverGameKey) {
-							$('.crownClick').remove()
-							multiplayerGameStatus = false
-							clearAllGameStatus()
-							let od = document.getElementById('ownscoreScoreMultiplayerCrownClicker')
-							let fd = document.getElementById('friendScoreMultiplayerCrownClicker')
-							let ti = document.getElementById('multiplayerGlobalTimer')
-							if (od !== null) {
-								fd.remove()
-								ti.remove()
-								od.remove()
-							} else {
-								console.log('Failed to remove multiplayer score DIV elements.')
-								debug('Failed to remove multiplayer score DIV elements.')
-							}
-							let j = document.createElement('div')
-							j.className = 'notification classic';
-							j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-							document.getElementsByClassName('relative')[0].appendChild(j)
-							let x = document.createElement('div')
-							x.innerHTML = 'Ⓧ'
-							x.className = 'x'
-							j.appendChild(x)
-							let k = document.createElement('div')
-							k.className = 'title'
-							k.innerText = 'MULTIPLAYER GAME SHUTDOWN.'
-							j.appendChild(k)
-							let p = document.createElement('div')
-							p.className = 'text'
-							p.innerText = `The game was shut down because "${reason}"`
-							j.appendChild(p)
-							x.addEventListener('click', () => {
-								j.remove()
-							})
-							setTimeout(function () {
-								j.remove()
-							}, 10000)
-						} else {
-							console.log('A game key was received to shutdown the server but the key was invalid.')
-							debug(`THE SERVER GIVEN GAME KEY ${gameKey}: THE GAME INVALID GAME KEY ${serverGameKey}`)
-							debug('A game key was received to shutdown the server but the key was invalid.')
-						}
-						break;
+					}
+					let j = document.createElement('div')
+					j.className = 'notification classic';
+					j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+					document.getElementsByClassName('relative')[0].appendChild(j)
+					let x = document.createElement('div')
+					x.innerHTML = 'Ⓧ'
+					x.className = 'x'
+					j.appendChild(x)
+					let k = document.createElement('div')
+					k.className = 'title'
+					k.innerText = 'NOTIFICATION:'
+					j.appendChild(k)
+					let p = document.createElement('div')
+					p.className = 'text'
+					p.innerText = 'The Roomowner has shared permissions with you! You can now kick people, change room color, and adjust other settings.'
+					j.appendChild(p)
+					x.addEventListener('click', () => {
+						j.remove()
+					})
+				} else {
+					debug(`Share permissions attempt received but was not crown owner. Received ID: ${i}, and Room Crownowner: ${MPP.client.channel.crown.userId}`)
 				}
 			}
 		}
-
-		if (debuggingMode) {
-			let debugWindow = document.getElementById('debugWindow-window')
-			if (debugWindow !== null) {
-				let message = document.createElement('div')
-				message.style = 'background-color: black;color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
-				message.innerText = e.data
-				debugWindow.appendChild(message)
-			} else {
-				console.log('Failure to find debug Window.')
-			}
-		}
-		console.log(e.data)
 	});
 	ws.addEventListener('close', function (e) {
 		if (playingMultiplayerCrownClicker) {
@@ -2924,6 +3379,7 @@ function addListener() {
 				j.remove()
 			}, 10000)
 		}
+
 	})
 }
 // -- //
@@ -2951,6 +3407,7 @@ function errorJoinRoom(error) {
 	})
 	j.appendChild(x)
 	i.appendChild(j)
+	console.log('called')
 }
 
 // -- //
@@ -3276,7 +3733,7 @@ function addClick(object, playerid, p) {
 						}
 					}
 					console.log('Player Removed')
-					sendMessage('update player')
+					sendMessage('update friends')
 					sendMessage('script user', playerid)
 					j.remove()
 					var req = indexedDB.deleteDatabase(playerid);
@@ -3309,6 +3766,10 @@ function addClick(object, playerid, p) {
 				setTimeout(function () {
 					if (roomreq === true) {
 						console.log('Timeout, closing requests')
+						if (friendRoomId.includes(playerid)) {
+							let x = friendRoomId.indexOf(playerid)
+							friendRoomId.splice(x, 1)
+						}
 						roomreq = false
 					}
 				}, 30000)
@@ -3332,7 +3793,7 @@ function addClick(object, playerid, p) {
 // -- //
 // FUNCTIONS TO UPDATE VERIFICATION ON PAGE
 function timeout() {
-	if (authenticationStatus === undefined || authenticationStatus === null) {
+	if (authenticationStatus === undefined || authenticationStatus === null && (connectingText && cancelButton)) {
 		stopDots = true
 		connectingText.style.color = 'red';
 		connectingText.innerHTML = "AUTHENTICATION FAILED. REASON: TIMEOUT";
@@ -3343,15 +3804,17 @@ function timeout() {
 }
 
 function alreadyVerified() {
-	stopDots = true
-	connectingText.style.color = 'lime';
-	connectingText.innerHTML = "YOU HAVE ALREADY BEEN VERIFIED.";
-	cancelButton.style.color = 'lime';
-	cancelButton.innerHTML = 'Success!';
+	if (connectingText && cancelButton) {
+		stopDots = true
+		connectingText.style.color = 'lime';
+		connectingText.innerHTML = "YOU HAVE ALREADY BEEN VERIFIED.";
+		cancelButton.style.color = 'lime';
+		cancelButton.innerHTML = 'Success!';
+	}
 }
 
 function verificationConfirmed() {
-	if (authenticationStatus === true) {
+	if (authenticationStatus === true && connectingText && cancelButton) {
 		stopDots = true
 		connectingText.style.color = 'lime';
 		connectingText.innerHTML = "AUTHENTICATION SUCCESS. IP TIED TO ID.";
@@ -3362,7 +3825,7 @@ function verificationConfirmed() {
 	}
 }
 function verificationFailed() {
-	if (authenticationStatus === false) {
+	if (authenticationStatus === false && connectingText && cancelButton) {
 		stopDots = true
 		connectingText.style.color = 'red';
 		connectingText.innerHTML = "AUTHENTICATION FAILED. REASON: AUTHORIZATION CODE ERROR.";
@@ -3472,7 +3935,7 @@ let test
 	}, 1000);
 	setTimeout(() => {
 		test = document.getElementById('friendsWindow-window').childNodes
-		sendMessage('update names')
+		// sendMessage('update names')
 	}, 3000);
 	// UPDATES CLIENT CONNECTION TO SERVER EVER 1 SECOND
 	window.setInterval(function () {
@@ -3483,8 +3946,10 @@ let test
 			document.getElementById('socketConnection-btn').innerHTML = 'Disconnected';
 			document.getElementById('socketConnection-btn').style.color = 'red';
 			for (let i = 1; i < test.length; i++) {
-				test[i].childNodes[1].innerHTML = '-'
-				test[i].childNodes[1].style.color = 'black'
+				if (test[i].childNodes[1] !== undefined) {
+					test[i].childNodes[1].innerHTML = '-'
+					test[i].childNodes[1].style.color = 'black'
+				}
 			}
 		} else if (ws.readyState === WebSocket.OPEN) {
 			document.getElementById('socketConnection-btn').innerHTML = 'Connected';
@@ -3501,11 +3966,12 @@ let test
 			}
 		}
 	}, 1000)
-	// UPDATES PLAYER INFO FILE EVERY 15 MINUTES
+	// AUTO CONNECT
 	window.setInterval(function () {
 		if (ws === undefined || ws === 'Websocket') {
-		} else if (ws.readyState === WebSocket.OPEN) {
-			sendMessage('update player')
+		} else if (ws.readyState === WebSocket.CLOSED) {
+			ws = new WebSocket(`${WEBSOCKETLOCATION}`);
+			sendMessage('get status')
 		}
 	}, 900000)
 
@@ -3532,8 +3998,13 @@ let test
 		let w = document.getElementById('settingsWindow-window')
 		let z = document.getElementById('verifyUserPrompt-window')
 		let score = document.getElementById('crownClickScore')
+		let fakeCrown = document.getElementById('shareRoomOwnershipCrown')
 		if (score) {
 			score.style.left = '38%'
+		}
+		if (fakeCrown) {
+			fakeCrown.style.left = `${($(window).width() - 190)}px`
+			fakeCrown.style.top = `${($(window).height() - 59) * -1}px`
 		}
 		if (w) {
 			w.style.left = `${settingsLeft}px`
@@ -3611,10 +4082,7 @@ let test
 	for (let i = 0; i < submit.length; i++) {
 		if (submit[i].innerText === 'USER SET') {
 			submit[i].addEventListener('click', () => {
-				setTimeout(function () {
-					sendMessage('update player')
-					sendMessage('send friend names', 'null', ownid)
-				}, 10000)
+				sendMessage('update name')
 			})
 		}
 	}
