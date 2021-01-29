@@ -136,20 +136,14 @@ setTimeout(() => {
 			}
 		})
 		setTimeout(function () {
-			(!hasdata && !cleared) ? (sendMessage('update player'), addListener()) : (undefined)
+			(!hasdata) ? (sendMessage('update player'), addListener()) : (undefined);
+			(!cleared) ? (sendMessage('check timeout'), addListener()) : (undefined);
 		}, 3000)
 	})
 }, 3000);
 let stopDots;
 let counter = 1;
 let msgWindowOpen = false;
-
-let owncolor
-MPP.client.on('connect', function () {
-	MPP.client.on('ch', function () {
-		owncolor = MPP.client.user.color
-	})
-})
 
 let deleteCookie = 'Thu, 01 Jan 1970 00:00:01 GMT,';
 let keepCookie = 'Thu, 01 Jan 2030 00:00:01 GMT,';
@@ -554,9 +548,6 @@ MPP.client.on('participant added', (p) => {
 			}
 		}
 	}
-	setTimeout(function () {
-		owncolor = document.getElementsByClassName('name me')[0].style.backgroundColor
-	}, 10000)
 	checkFriendHTML(p._id, p)
 	if (ws !== undefined && ws.readyState === WebSocket.OPEN) {
 		sendMessage('script user', p._id)
@@ -576,7 +567,11 @@ MPP.client.on('participant added', (p) => {
 					if (fakeOwner == true && !(MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id)) {
 						document.getElementsByClassName('participant-menu')[0].appendChild(kickban);
 						kickban.addEventListener('click', function () {
-							sendMessage('kick user', `${p._id}:${MPP.client.channel.crown.userId}`)
+							var minutes = prompt("How many minutes? (0-60)", "30");
+							if(minutes === null) return;
+							minutes = parseFloat(minutes) || 0;
+							var ms = minutes * 60 * 1000;
+							sendMessage('kick user', p._id, MPP.client.channel.crown.userId, ms)
 						})
 					}
 					document.getElementsByClassName('participant-menu')[0].appendChild(objectf);
@@ -782,6 +777,60 @@ function hideWindows(i) {
 	}
 }
 // -- //
+
+function createWebsocketError(e) {
+	if ($('#errorFromWebsocket')[0]) { $('#errorFromWebsocket')[0].remove() }
+	let j = document.createElement('div')
+	j.id = 'errorFromWebsocket'
+	j.className = 'notification classic';
+	j.style = 'opacity: 1;height: 115px;top: -12%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
+	document.getElementsByClassName('relative')[0].appendChild(j)
+	let x = document.createElement('div')
+	x.innerHTML = 'Ⓧ'
+	x.className = 'x'
+	j.appendChild(x)
+	let k = document.createElement('div')
+	k.className = 'title'
+	k.innerText = 'Error from server:'
+	j.appendChild(k)
+	let p = document.createElement('div')
+	p.className = 'text'
+	p.innerText = e
+	j.appendChild(p)
+	x.addEventListener('click', () => {
+		j.remove()
+	})
+	j.addEventListener('click', () => {
+		j.remove()
+	})
+	var animation = 0
+	let animate = window.setInterval(function () {
+		if (animation == 13) {
+			clearInterval(animate)
+			setTimeout(function () {
+				let fade = 0
+				let fadeout = window.setInterval(function () {
+					if (fade == 10) { clearInterval(fadeout) }
+					let opacity = Number(j.style.opacity)
+					const newop = opacity - 0.1
+					if (j !== null) {
+						j.style.opacity = newop.toString()
+					}
+					fade++
+				}, 10)
+			}, 5000)
+		}
+		let c = Number(j.style.top.split('%')[0])
+		const f = c + 1
+		if (j !== null) {
+			j.style.top = `${f.toString()}%`
+		}
+		animation++
+		console.log('doing stuff')
+	}, 10)
+
+	return ({ popup: j, xbutton: x })
+}
 
 function sendCrownPermissions(node) {
 	let g = []
@@ -1049,9 +1098,9 @@ function buttonClicked(object, num) {
 		if (ws === undefined || ws.readyState === WebSocket.CLOSED) {
 			ws = new WebSocket(`${WEBSOCKETLOCATION}`);
 			addListener()
-			if(!cleared){
-			sendMessage('get status')
-			}else{
+			if (cleared) {
+				sendMessage('get status')
+			} else {
 				sendMessage('update player')
 			}
 		} else if (ws.readyState === WebSocket.OPEN) {
@@ -1897,7 +1946,6 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 				j.id = `new_msg_${id}`
 				j.style = 'text-align: right;font-size: 10px;color: white;'
 			} else {
-				console.log("Message from someone who isn't friend")
 				if (document.getElementById('Unknown_message')) { document.getElementById('Unknown_message').remove() }
 				let j = document.createElement('div')
 				j.id = 'Unknown_message'
@@ -1945,7 +1993,7 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 					document.cookie = (`!${id}=${color}; expires=${keepCookie}`)
 					document.cookie = (`#${id}=${window}; expires=${keepCookie}`)
 					addClick(friend, id)
-					sendMessage('update player')
+					sendMessage('get status')
 					let f = MPP.client.ppl
 					for (const property in f) {
 						let j = Object.getOwnPropertyDescriptor(f[property], '_id')
@@ -1998,7 +2046,7 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			tempWindow.scrollBy(0, windowScroll)
 		}
 		if (id === ownid) {
-			v.style = `background-color: ${owncolor};color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;user-select: text;`
+			v.style = `background-color: ${MPP.client.getOwnParticipant().color};color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;user-select: text;`
 		} else {
 			v.style = `background-color: ${color};color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;user-select: text;`
 		}
@@ -2174,18 +2222,6 @@ function sendMessage(param, msg, playerid, msgid) {
 	let payload = {}
 	let x
 
-	// if(param=='update player' || param=='check timeout'){
-	// 	if(document.getElementById('websocketNotCleared-popup')==null){
-	// 		return
-	// 	}else{
-	// 		return
-	// 	}
-	// }
-	// if(!cleared || !hasdata){
-	// 	createPopup('FAILURE TO CONTACT WEBSOCKET:', `The server does not have your data or you have not been cleared to send messages. Please head into settings and click 'Not verified'.`, 'websocketNotCleared-popup')
-	// 	return
-	// }
-
 	switch (param) {
 		case 'update player':
 			let y = (MPP.client.getOwnParticipant())
@@ -2329,15 +2365,15 @@ function sendMessage(param, msg, playerid, msgid) {
 					})
 				}
 			} else {
-				setTimeout(function(){
-				stopDots = true
-				let h = $('#cancelButton-btn')[0]
-				h.style.color = 'lime'
-				h.innerText = 'Verified.'
-				let hg = $('#connectingText')[0]
-				hg.innerText = 'You have been confirmed verified.'
-				hg.style.color='lime'
-				},1000)
+				setTimeout(function () {
+					stopDots = true
+					let h = $('#cancelButton-btn')[0]
+					h.style.color = 'lime'
+					h.innerText = 'Verified.'
+					let hg = $('#connectingText')[0]
+					hg.innerText = 'You have been confirmed verified.'
+					hg.style.color = 'lime'
+				}, 1000)
 			}
 			break;
 		case 'get status':
@@ -2417,45 +2453,56 @@ function sendMessage(param, msg, playerid, msgid) {
 				})
 			}
 			break;
+		case 'remove permissions':
+			payload = {
+				id: msg
+			}
+			x = stringUp('removepermissions', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
+		case 'share permissions':
+			payload = {
+				id: msg
+			}
+			x = stringUp('sharepermissions', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
+		case 'kick user':
+			payload = {
+				kick: msg,
+				crownowner: playerid,
+				time: msgid
+			}
+			x = stringUp('kickuser', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
 	}
 
-	return
-	if (param === 'remove permissions') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`removepermissions:${msg}:${ownid}`);
-			debug(`removepermissions:${msg}:${ownid}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`removepermissions:${msg}:${ownid}`);
-				debug(`removepermissions:${msg}:${ownid}`)
-			})
-		}
-	}
-	if (param === 'share permissions') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`sharepermissions:${msg}:${ownid}`);
-			debug(`sharepermissions:${msg}:${ownid}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`sharepermissions:${msg}:${ownid}`);
-				debug(`sharepermissions:${msg}:${ownid}`)
-			})
-		}
-	}
-	if (param === 'kick user') {
-		if (ws.readyState === WebSocket.OPEN) {
-			ws.send(`kickuser:${msg}:${ownid}`);
-			debug(`kickuser:${msg}:${ownid}`)
-		} else {
-			ws.addEventListener('open', function (e) {
-				ws.send(`#${ownid}`);
-				ws.send(`kickuser:${msg}:${ownid}`);
-				debug(`kickuser:${msg}:${ownid}`)
-			})
-		}
-	}
+	return;
 }
 // -- //
 
@@ -2511,17 +2558,28 @@ function addListener() {
 								case 'msgerr':
 									switch (a.data.num) {
 										case '5':
-											console.error(a.data.error.failure)
+											createWebsocketError(a.data.error.failure)
 											messageStatus('Not Sent', a.data.error.mid)
 											break;
 										case '6':
+											createWebsocketError('This person does not use the script.')
 											createMessageOnScreen(a.data.error.rid, 'This player is not in the script database. Ask them to use the script to message them.', 'true', 'rgb(0, 0, 0)', 'SERVER', undefined, true)
 											messageStatus('Not Sent', a.data.error.mid)
 											break;
 									}
 									break;
+								case 'permshare':
+									sharedPermissions.splice(sharedPermissions.indexOf(a.data.error.id), 1)
+									let ref = Object.getOwnPropertyDescriptor(MPP.client.ppl, a.data.id).nameDiv
+									for (let i = 0; i < ref.childNodes.length; i++) {
+										if (ref.childNodes[i].id == 'thatFakeCrown') {
+											ref.childNodes[i].remove()
+										}
+									}
+									createWebsocketError(a.data.error.reason)
+									break;
 								default:
-									console.error(a.data)
+									createWebsocketError(a.data.error)
 									break;
 							}
 							break;
@@ -2586,6 +2644,7 @@ function addListener() {
 												}
 												verifyClient.stop();
 												verificationFailed()
+												createWebsocketError('There was an error verifying. This could be due to running multiple MPP users on one PC.')
 											}
 										});
 									}
@@ -3219,13 +3278,72 @@ function addListener() {
 						case 'serverannouncement':
 							createPopup('ANNOUNCEMENT FROM SERVER:', a.data.announcement, 'serverAnnouncement-popup')
 							break;
+						case 'permissionshare':
+							if (!MPP.client.channel.crown) { return }
+							if(MPP.client.channel.crown.userId!==MPP.client.getOwnParticipant()._id)
+							if (MPP.client.channel.crown.userId == a.data.id) {
+								fakeOwner = true
+								let f = MPP.client.ppl
+								for (const property in f) {
+									let j = Object.getOwnPropertyDescriptor(f[property], '_id')
+									if (j) {
+										if (j.value === MPP.client.user._id) {
+											let p = f[property]
+											let crown = document.createElement('div')
+											crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+											crown.id = 'thatFakeCrown'
+											p.nameDiv.appendChild(crown)
+										}
+									}
+								}
+								createPopup('NOTIFICATION:', 'The Roomowner has shared permissions with you! You can now kick people, change room color, and adjust other settings.')
+							}
+							break;
+						case 'kickuser':
+							if (sharedPermissions.includes(a.data.id)) {
+								const cr = MPP.client.channel.crown.userId
+								const ow = MPP.client.getOwnParticipant()._id
+								if ((a.data.roomowner == cr) && (cr == ow)) {
+									if(a.data.kick!==ow){
+										MPP.client.sendArray([{ m: "kickban", _id: a.data.kick, ms: a.data.time }]);
+									}
+								} else {
+									debug(`The roomowner id from the kick request is not the current roomowner from req.`)
+								}
+							} else {
+								debug(`Kick user attempt from unknown user: ${reqid}`)
+							}
+							break;
+						case 'permissionremove':
+							let f = MPP.client.ppl
+							if(!fakeOwner){return}
+							if (a.data.crownowner == MPP.client.channel.crown.userId ) {
+								for (const property in f) {
+									let j = Object.getOwnPropertyDescriptor(f[property], '_id')
+									if (j) {
+										if (j.value === MPP.client.user._id) {
+											let p = f[property]
+											for (let i = 0; i < p.nameDiv.childNodes.length; i++) {
+												if (p.nameDiv.childNodes[i].id == 'thatFakeCrown') {
+													p.nameDiv.childNodes[i].remove()
+												}
+											}
+										}
+									}
+								}
+								fakeOwner=false
+								createPopup('NOTIFICATION:', 'The roomowner has revoked your shared permissions.')
+							} else {
+								debug('Remove permissions but person was not roomowner.')
+							}			
+							break;
 						default:
-							console.log(`Message not caught: ${a}`)
+							createWebsocketError(`Message not caught: ${a}`)
 							break;
 					}
 					break;
 				default:
-					console.warn(`Unexpected key received from websocket: ${key}.`)
+					createWebsocketError(`Unexpected server key received: ${key}`)
 					break;
 			}
 			if (debuggingMode) {
@@ -3237,105 +3355,6 @@ function addListener() {
 					debugWindow.appendChild(message)
 				} else {
 					console.log('Failure to find debug Window.')
-				}
-			}
-		}
-		if (1 !== 1) {
-			responseReceived = true
-			if (e.data.includes('kickuser:')) {
-				let reqid = e.data.split(':')[3]
-				if (sharedPermissions.includes(reqid)) {
-					let kickuser = e.data.split(':')[1]
-					let roomowner = e.data.split(':')[2]
-					if (roomowner == MPP.client.channel.crown.userId) {
-						MPP.client.sendArray([{ m: "kickban", _id: kickuser, ms: 0 }]);
-					} else {
-						debug(`The roomowner id from the kick request is not the current roomowner from req.`)
-					}
-				} else {
-					debug(`Kick user attempt from unknown user: ${reqid}`)
-				}
-			}
-			if (e.data.includes('removepermissions:')) {
-				let i = e.data.split(':')[1]
-				let f = MPP.client.ppl
-				if (i == MPP.client.channel.crown.userId) {
-					for (const property in f) {
-						let j = Object.getOwnPropertyDescriptor(f[property], '_id')
-						if (j) {
-							if (j.value === MPP.client.user._id) {
-								let p = f[property]
-								for (let i = 0; i < p.nameDiv.childNodes.length; i++) {
-									if (p.nameDiv.childNodes[i].id == 'thatFakeCrown') {
-										p.nameDiv.childNodes[i].remove()
-									}
-								}
-							}
-						}
-					}
-					fakeOwner = false
-					let j = document.createElement('div')
-					j.className = 'notification classic';
-					j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-					document.getElementsByClassName('relative')[0].appendChild(j)
-					let x = document.createElement('div')
-					x.innerHTML = 'Ⓧ'
-					x.className = 'x'
-					j.appendChild(x)
-					let k = document.createElement('div')
-					k.className = 'title'
-					k.innerText = 'NOTIFICATION:'
-					j.appendChild(k)
-					let p = document.createElement('div')
-					p.className = 'text'
-					p.innerText = 'The roomowner has revoked your shared permissions.'
-					j.appendChild(p)
-					x.addEventListener('click', () => {
-						j.remove()
-					})
-				} else {
-					debug('Remove permissions but person was not roomowner.')
-				}
-
-			}
-			if (e.data.includes('sharepermissions')) {
-				let i = e.data.split(':')[1]
-				if (MPP.client.channel.crown.userId == i) {
-					fakeOwner = true
-					let f = MPP.client.ppl
-					for (const property in f) {
-						let j = Object.getOwnPropertyDescriptor(f[property], '_id')
-						if (j) {
-							if (j.value === MPP.client.user._id) {
-								let p = f[property]
-								let crown = document.createElement('div')
-								crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
-								crown.id = 'thatFakeCrown'
-								p.nameDiv.appendChild(crown)
-							}
-						}
-					}
-					let j = document.createElement('div')
-					j.className = 'notification classic';
-					j.style = 'height: 292px;top: 33%;right: 36%;position: fixed;width: 500px;overflow-wrap: anywhere;overflow-y: scroll;background-color: rgb(255, 238, 170);'
-					document.getElementsByClassName('relative')[0].appendChild(j)
-					let x = document.createElement('div')
-					x.innerHTML = 'Ⓧ'
-					x.className = 'x'
-					j.appendChild(x)
-					let k = document.createElement('div')
-					k.className = 'title'
-					k.innerText = 'NOTIFICATION:'
-					j.appendChild(k)
-					let p = document.createElement('div')
-					p.className = 'text'
-					p.innerText = 'The Roomowner has shared permissions with you! You can now kick people, change room color, and adjust other settings.'
-					j.appendChild(p)
-					x.addEventListener('click', () => {
-						j.remove()
-					})
-				} else {
-					debug(`Share permissions attempt received but was not crown owner. Received ID: ${i}, and Room Crownowner: ${MPP.client.channel.crown.userId}`)
 				}
 			}
 		}
@@ -3594,7 +3613,7 @@ function addClick(object, playerid, p) {
 									$("#chat input").get(0).blur();
 									$("#chat").removeClass("chatting");
 									if (inputBox.value.trim()) {
-										createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
+										createMessageOnScreen(ownid, inputBox.value, 'true', MPP.client.getOwnParticipant().color, `msgWin_${playerid}`, undefined, true)
 										sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
 									}
 									statusM = false
@@ -3615,7 +3634,7 @@ function addClick(object, playerid, p) {
 								console.log('Send')
 								// EXPERIMENTAL
 								if (inputBox.value.trim()) {
-									createMessageOnScreen(ownid, inputBox.value, 'true', owncolor, `msgWin_${playerid}`, undefined, true)
+									createMessageOnScreen(ownid, inputBox.value, 'true', MPP.client.getOwnParticipant().color, `msgWin_${playerid}`, undefined, true)
 									sendMessage('send message', inputBox.value, playerid, messageIdIndex[`${playerid}_Index`].toString())
 								}
 								// EXPERIMENTAL
@@ -4124,3 +4143,6 @@ let test
 	}
 })();
 // -- //
+
+
+
