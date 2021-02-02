@@ -30,6 +30,7 @@ let hasdata
 let fakeOwner = false
 let sharedPermissions = []
 let disablePopups
+let currentlySharing
 let gotVersionNo
 let scriptWebsite = 'https://raw.githubusercontent.com/MajorH5/Friends-in-Multiplayer-Piano/main/Friends_in_MPP.js'
 let versionNo = '1.5'
@@ -53,6 +54,7 @@ let currentlyPlaying = ''
 let newsetup;
 let cookies;
 let join
+let roomSetObserve
 let friends = [];
 let bgr = []
 let savname = [];
@@ -189,7 +191,6 @@ updateFriendArray();
 function addNewFriend(playerid, p) {
 	for (let i = 0; i < friends.length; i++) {
 		if (friends[i] === playerid) {
-			console.log('Friend, ' + playerid + ' already Added!')
 			return;
 		}
 	}
@@ -266,6 +267,9 @@ function checkRoomOwner(p) {
 	}
 }
 
+MPP.client.on('participant update', (p)=>{
+	checkFriendHTML(p._id, p)
+})
 // -- //
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
 function checkFriendHTML(playerid, p) {
@@ -568,7 +572,7 @@ MPP.client.on('participant added', (p) => {
 						document.getElementsByClassName('participant-menu')[0].appendChild(kickban);
 						kickban.addEventListener('click', function () {
 							var minutes = prompt("How many minutes? (0-60)", "30");
-							if(minutes === null) return;
+							if (minutes === null) return;
 							minutes = parseFloat(minutes) || 0;
 							var ms = minutes * 60 * 1000;
 							sendMessage('kick user', p._id, MPP.client.channel.crown.userId, ms)
@@ -596,7 +600,17 @@ MPP.client.on('participant added', (p) => {
 // -- //
 // LISTENS FOR ROOM JOIN AND CHECK IF CROWN TO ADD CROWN THING
 MPP.client.on('ch', function () {
-	if (MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
+	if (currentlySharing) {
+		if (!MPP.client.channel.crown) { return (removeRoomSettings()) }
+		if (MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) { return }
+		if (currentlySharing !== MPP.client.channel.crown.userId) { return (removeRoomSettings()) } else {
+			fakeOwner = true
+			makeRoomSettings()
+		}
+	} else {
+		removeRoomSettings()
+	}
+	if ((MPP.client.channel.crown) && MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
 		if (document.getElementById('shareRoomOwnershipCrown') !== null) {
 			document.getElementById('shareRoomOwnershipCrown').remove()
 			generatePseudoCrown()
@@ -608,8 +622,76 @@ MPP.client.on('ch', function () {
 			document.getElementById('shareRoomOwnershipCrown').remove()
 		}
 	}
+	if (fakeOwner) {
+		let crown = document.createElement('div'); crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'; crown.id = 'thatFakeCrown'
+		let nameThing = MPP.client.getOwnParticipant().nameDiv
+		nameThing.appendChild(crown)
+	}
 })
 // -- //
+
+function gatherParse() {
+	const a = $("#room-settings .checkbox[name=visible]").prop("checked");
+	const b = $("#room-settings .checkbox[name=chat]").prop("checked");
+	const c = $("#room-settings .checkbox[name=crownsolo]").prop("checked");
+	const d = $("#room-settings input[name=color]").val()
+	const obj = {
+		color: d,
+		chat: b,
+		crownsolo: c,
+		visible: a
+	}
+	return (obj)
+}
+
+function makeRoomSettings() {
+	function openModal(selector, focus) {
+		$(document).on("keydown");
+		$("#modal #modals > *").hide();
+		$("#modal").fadeIn(250);
+		$(selector).show();
+		setTimeout(function () {
+			$(selector).find(focus).focus();
+		}, 100);
+	};
+	$("#room-settings-btn").show();
+	$("#room-settings-btn").click(function () {
+		openModal("#room-settings");
+	});
+	let j
+	let x = $('.submit')
+	for (let i = 0; i < x.length; i++) { (x[i].innerText == 'APPLY') ? (j = x[i]) : (undefined) }
+	j.addEventListener('click', ferfe)
+	var element = document.querySelector('#room-settings-btn');
+	roomSetObserve = new MutationObserver(function (mutations) {
+		mutations.forEach(function (mutation) {
+			if (mutation.type == "attributes" && fakeOwner) {
+				$('#room-settings-btn').show();
+			}
+		});
+	});
+	roomSetObserve.observe(element, {
+		attributes: true
+	});
+}
+
+function ferfe() {
+	sendMessage('change room set', gatherParse())
+}
+
+function removeRoomSettings() {
+	fakeOwner = false
+	if (!roomSetObserve) { return }
+	if (!MPP.client.channel.crown) { return }
+	roomSetObserve.disconnect();
+	let j
+	let x = $('.submit')
+	for (let i = 0; i < x.length; i++) { (x[i].innerText == 'APPLY') ? (j = x[i]) : (undefined) }
+	j.removeEventListener('click', ferfe)
+	if (MPP.client.getOwnParticipant()._id !== MPP.client.channel.crown.userId) {
+		$('#room-settings-btn').hide();
+	}
+}
 
 // -- //
 // LISTENS FOR CLICK ADD FRIEND
@@ -718,7 +800,6 @@ for (let i = 0; i < cookies.length; i++) {
 if (found === false) {
 	document.cookie = (`^allowFriendJoin=enabled; expires=${keepCookie}`)
 	allowRoom = true
-	console.log('here')
 }
 // -- //
 
@@ -826,7 +907,6 @@ function createWebsocketError(e) {
 			j.style.top = `${f.toString()}%`
 		}
 		animation++
-		console.log('doing stuff')
 	}, 10)
 
 	return ({ popup: j, xbutton: x })
@@ -868,7 +948,6 @@ function sendCrownPermissions(node) {
 		for (const property in f) {
 			let j = f[property]
 			if (element !== j && (j.nameDiv.innerHTML.includes('thatFakeCrown'))) {
-				console.log(`Removing extra crowns.`)
 				for (let i = 0; i < j.nameDiv.childNodes.length; i++) {
 					if (j.nameDiv.childNodes[i].id === 'thatFakeCrown') {
 						j.nameDiv.childNodes[i].remove()
@@ -881,7 +960,6 @@ function sendCrownPermissions(node) {
 	for (const property in f) {
 		let j = f[property]
 		if (detect(node, j.nameDiv)) {
-			console.log(`Giving crown permissions to ${j.nameDiv.innerText}`)
 			let object = { j }
 			g.push(object)
 		}
@@ -910,7 +988,6 @@ function sendCrownPermissions(node) {
 		removeExtraCrowns(undefined)
 	} else if (g.length == 1 && g[0].j._id !== MPP.client.user._id) {
 		removeExtraCrowns(g[0].j)
-		console.log(`${g[0].j._id}, is the user you would like to share permissions with.`)
 		let crownOwner = MPP.client.channel.crown.userId
 		if (crownOwner == ownid) {
 			if (!sharedPermissions.includes(g[0].j._id)) {
@@ -1098,10 +1175,16 @@ function buttonClicked(object, num) {
 		if (ws === undefined || ws.readyState === WebSocket.CLOSED) {
 			ws = new WebSocket(`${WEBSOCKETLOCATION}`);
 			addListener()
+			if (!hasdata) {
+				sendMessage('update player')
+				setTimeout(function () {
+					sendMessage('check timeout')
+				}, 5000)
+			}
 			if (cleared) {
 				sendMessage('get status')
 			} else {
-				sendMessage('update player')
+				sendMessage('check timeout')
 			}
 		} else if (ws.readyState === WebSocket.OPEN) {
 			ws.close()
@@ -1215,7 +1298,6 @@ function buttonClicked(object, num) {
 			e.addEventListener('click', function () {
 				if (document.getElementById('delete-Site-DataWarning') === null) {
 					s.style.visibility = 'hidden'
-					console.log('clear data')
 					let j = document.createElement('div')
 					j.className = 'notification classic';
 					j.id = 'delete-Site-DataWarning'
@@ -1600,10 +1682,6 @@ function buttonClicked(object, num) {
 												debug('Websocket is not ready.')
 											}
 										}
-									} else {
-										if (pendingRequest) {
-											console.log('You already have a pending request.')
-										}
 									}
 								})
 							}
@@ -1667,8 +1745,6 @@ function buttonClicked(object, num) {
 									i.innerText = 'Submitting...'
 									i.style.color = 'orange'
 									sendMessage('update leaderboards', cursorClickerScore, 'crownclicker')
-								} else {
-									console.log("Couldn't grab playerId.")
 								}
 							})
 							let k = document.createElement('div')
@@ -1878,7 +1954,6 @@ let msgs = [];
 // CREATE MESSAGE POP UPS ON SCREEN
 function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 	if (!msg.trim()) { return }
-	console.log(window, msgid)
 	// STORAGE TO INDEXDB
 	let f
 	let msngerWindow
@@ -1906,7 +1981,6 @@ function createMessageOnScreen(id, msg, verify, color, window, msgid, i) {
 			color: color
 		}
 	}
-	console.log(message.message)
 	// EXPERIMENTAL
 	if (id === ownid) {
 		msngerWindow = document.getElementById(window)
@@ -2206,7 +2280,6 @@ let verifyRoom
 let verifyCode
 let responseReceived = false
 function sendMessage(param, msg, playerid, msgid) {
-	console.log(param)
 	if (ws === undefined) {
 		ws = new WebSocket(`${WEBSOCKETLOCATION}`);
 		// addListener()
@@ -2345,7 +2418,6 @@ function sendMessage(param, msg, playerid, msgid) {
 			let internal = 'Please wait 30 seconds before sending another verification request. If it keeps failing the servers may be down or contact MajorH on discord: @MajorH#6304'
 			let title = 'SPAM WARNING'
 			if (clickable === false) {
-				console.log('DO NOT SPAM WEBSOCKET WITH REQUESTS.')
 				if (document.getElementById('verifyUserPrompt-window')) {
 					document.getElementById('verifyUserPrompt-window').remove()
 					createPopup(title, internal, 'verifySpamWarning')
@@ -2500,6 +2572,23 @@ function sendMessage(param, msg, playerid, msgid) {
 				})
 			}
 			break;
+		case 'change room set':
+			if (!MPP.client.channel.crown) { return }
+			payload = {
+				roomsettings: msg,
+				crownowner: MPP.client.channel.crown.userId
+			}
+			x = (stringUp('changeroomset', payload))
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x)
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x)
+					debug(x)
+				})
+			}
+			break;
 	}
 
 	return;
@@ -2600,21 +2689,17 @@ function addListener() {
 								verifyClient.setChannel(a.data.verifyroom);
 								setTimeout(function () {
 									if (!authenticationStatus) {
-										timeout()
 										verifyClient.stop()
 										console.log('Timeout.')
+										timeout()
 									}
 								}, 40000)
-								console.log(a.data.verifyroom)
-								console.log('Sending Verification Code.')
-								debug('Sending Verification Code.')
+								debug('Sending Verification Code.', a.data.verifyroom)
 								verifyClient.on('ch', () => {
 									if (!cleared) {
 										verifyClient.sendArray([{ m: 'a', message: `*${a.data.verifycode}` }]);
 										verifyClient.on('a', msg => {
-											console.log(`message`)
 											if (msg.a.toString().toLowerCase().startsWith('user authenticated.')) {
-												console.log('Authentication success!')
 												authenticationStatus = true
 												document.cookie = (`&verificationStatus=true; expires=${keepCookie}`)
 												let z = document.getElementById('manualVerify-btn')
@@ -2635,7 +2720,6 @@ function addListener() {
 												verificationConfirmed()
 											}
 											if (msg.a.toString().toLowerCase().startsWith('could not authenticate user')) {
-												console.log('Authentication failure.')
 												authenticationStatus = false
 												document.cookie = (`&verificationStatus=false; expires=${keepCookie}`)
 												if (ws.readyState == WebSocket.CLOSED) {
@@ -2660,10 +2744,8 @@ function addListener() {
 						case 'verifystatus':
 							switch (a.data.status) {
 								case 'identityverified':
-									console.log('Verified')
 									break;
 								case 'identityfailed':
-									console.log('Not verified')
 									verifyClient.stop()
 									break;
 							}
@@ -2671,9 +2753,7 @@ function addListener() {
 						case 'reqjoinroom':
 							let reqid = a.data.tid
 							if (allowRoom === true) {
-								console.log(`Room request from: ${reqid}`)
 								if (friends.includes(reqid)) {
-									console.log('ok its good its in friends')
 									let fed = {
 										rid: reqid,
 										room: window.MPP.client.channel._id
@@ -2682,7 +2762,6 @@ function addListener() {
 									ws.send(j)
 									debug(`final-${window.MPP.client.channel._id}-${reqid}-${ownid}`)
 								} else {
-									console.log('not in friends list :(')
 									let fede = {
 										rid: reqid,
 										reason: 'This person does not have you friended'
@@ -2891,7 +2970,6 @@ function addListener() {
 											setTimeout(function () {
 												if (allowGameInitation) {
 													allowGameInitation = false
-													console.log('Initiation for multiplayer games has closed.')
 												}
 											}, 10000)
 										})
@@ -2994,7 +3072,6 @@ function addListener() {
 										})
 
 									}
-									console.log(`Multiplayer request for ${game} failed because ${reason}.`)
 								} else {
 									console.warn('A failed multiplayer request was received, however The user was not on the friends list, how?')
 								}
@@ -3048,16 +3125,13 @@ function addListener() {
 							}
 							break;
 						case 'ingame':
-							console.log('here')
 							switch (a.data.ingame) {
 								case 'crownclicker':
-									console.log('here2')
 									let returnpayload = {}
 									// if (!playingMultiplayerCrownClicker) { return }
 									let command = a.data.command
 									switch (command) {
 										case 'setup':
-											console.log('here3')
 											if (!alreadySetup) {
 												let i = document.getElementsByClassName('relative')[0]
 												let ownscore = document.createElement('div')
@@ -3171,7 +3245,6 @@ function addListener() {
 												})
 												multiplayerCrownAmmount++
 											} else {
-												console.log('No more crown positions left')
 												debug('No more crown positions left')
 											}
 											break;
@@ -3240,7 +3313,6 @@ function addListener() {
 													ti.remove()
 													od.remove()
 												} else {
-													console.log('Failed to remove multiplayer score DIV elements.')
 													debug('Failed to remove multiplayer score DIV elements.')
 												}
 												let j = document.createElement('div')
@@ -3266,7 +3338,6 @@ function addListener() {
 													j.remove()
 												}, 10000)
 											} else {
-												console.log('A game key was received to shutdown the server but the key was invalid.')
 												debug(`THE SERVER GIVEN GAME KEY ${gameKey}: THE GAME INVALID GAME KEY ${serverGameKey}`)
 												debug('A game key was received to shutdown the server but the key was invalid.')
 											}
@@ -3280,31 +3351,34 @@ function addListener() {
 							break;
 						case 'permissionshare':
 							if (!MPP.client.channel.crown) { return }
-							if(MPP.client.channel.crown.userId!==MPP.client.getOwnParticipant()._id)
-							if (MPP.client.channel.crown.userId == a.data.id) {
-								fakeOwner = true
-								let f = MPP.client.ppl
-								for (const property in f) {
-									let j = Object.getOwnPropertyDescriptor(f[property], '_id')
-									if (j) {
-										if (j.value === MPP.client.user._id) {
-											let p = f[property]
-											let crown = document.createElement('div')
-											crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
-											crown.id = 'thatFakeCrown'
-											p.nameDiv.appendChild(crown)
+							if (MPP.client.channel.crown.userId !== MPP.client.getOwnParticipant()._id)
+								if (MPP.client.channel.crown.userId == a.data.id) {
+									fakeOwner = true
+									let f = MPP.client.ppl
+									for (const property in f) {
+										let j = Object.getOwnPropertyDescriptor(f[property], '_id')
+										if (j) {
+											if (j.value === MPP.client.user._id) {
+												let p = f[property]
+												let crown = document.createElement('div')
+												crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+												crown.id = 'thatFakeCrown'
+												p.nameDiv.appendChild(crown)
+											}
 										}
 									}
+									makeRoomSettings()
+									currentlySharing = a.data.id
+									createPopup('NOTIFICATION:', 'The Roomowner has shared permissions with you! You can now kick people, change room color, and adjust other settings.')
 								}
-								createPopup('NOTIFICATION:', 'The Roomowner has shared permissions with you! You can now kick people, change room color, and adjust other settings.')
-							}
+
 							break;
 						case 'kickuser':
 							if (sharedPermissions.includes(a.data.id)) {
 								const cr = MPP.client.channel.crown.userId
 								const ow = MPP.client.getOwnParticipant()._id
 								if ((a.data.roomowner == cr) && (cr == ow)) {
-									if(a.data.kick!==ow){
+									if (a.data.kick !== ow) {
 										MPP.client.sendArray([{ m: "kickban", _id: a.data.kick, ms: a.data.time }]);
 									}
 								} else {
@@ -3314,28 +3388,32 @@ function addListener() {
 								debug(`Kick user attempt from unknown user: ${reqid}`)
 							}
 							break;
+						case 'changeroomset':
+							if (sharedPermissions.includes(a.data.id)) {
+								const cr = MPP.client.channel.crown.userId
+								const ow = MPP.client.getOwnParticipant()._id
+								if (cr == ow) {
+									MPP.client.sendArray([{ m: "chset", set: a.data.roomsettings }]);
+								} else {
+									debug(`The roomowner id from the change request is not the current roomowner from req.`)
+								}
+							}
+							break;
 						case 'permissionremove':
-							let f = MPP.client.ppl
-							if(!fakeOwner){return}
-							if (a.data.crownowner == MPP.client.channel.crown.userId ) {
-								for (const property in f) {
-									let j = Object.getOwnPropertyDescriptor(f[property], '_id')
-									if (j) {
-										if (j.value === MPP.client.user._id) {
-											let p = f[property]
-											for (let i = 0; i < p.nameDiv.childNodes.length; i++) {
-												if (p.nameDiv.childNodes[i].id == 'thatFakeCrown') {
-													p.nameDiv.childNodes[i].remove()
-												}
-											}
-										}
+							if (a.data.crownowner == MPP.client.channel.crown.userId) {
+								let p = MPP.client.getOwnParticipant().nameDiv
+								for (let i = 0; i < p.childNodes.length; i++) {
+									if (p.childNodes[i].id == 'thatFakeCrown') {
+										p.childNodes[i].remove()
 									}
 								}
-								fakeOwner=false
+								fakeOwner = false
+								currentlySharing = false
+								removeRoomSettings()
 								createPopup('NOTIFICATION:', 'The roomowner has revoked your shared permissions.')
 							} else {
 								debug('Remove permissions but person was not roomowner.')
-							}			
+							}
 							break;
 						default:
 							createWebsocketError(`Message not caught: ${a}`)
@@ -3353,8 +3431,6 @@ function addListener() {
 					message.style = 'background-color: black;color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;'
 					message.innerText = e.data
 					debugWindow.appendChild(message)
-				} else {
-					console.log('Failure to find debug Window.')
 				}
 			}
 		}
@@ -3372,7 +3448,6 @@ function addListener() {
 				ti.remove()
 				od.remove()
 			} else {
-				console.log('Failed to remove multiplayer score DIV elements.')
 				debug('Failed to remove multiplayer score DIV elements.')
 			}
 			let j = document.createElement('div')
@@ -3426,7 +3501,6 @@ function errorJoinRoom(error) {
 	})
 	j.appendChild(x)
 	i.appendChild(j)
-	console.log('called')
 }
 
 // -- //
@@ -3608,8 +3682,6 @@ function addClick(object, playerid, p) {
 							$(document).on("keydown", function (evt) {
 								if (evt.keyCode == 13 && currentInput.startsWith('msgInput')) {
 									let i = document.getElementById(currentInput)
-									console.log(i.value)
-									console.log('Send')
 									$("#chat input").get(0).blur();
 									$("#chat").removeClass("chatting");
 									if (inputBox.value.trim()) {
@@ -3631,7 +3703,6 @@ function addClick(object, playerid, p) {
 							sendButton.id = `sendButt_${playerid}`
 							sendButton.style = `display: block;position: fixed;color: white;top: ${buttonTop}px;left: ${buttonLeft}px;`;
 							sendButton.onclick = () => {
-								console.log('Send')
 								// EXPERIMENTAL
 								if (inputBox.value.trim()) {
 									createMessageOnScreen(ownid, inputBox.value, 'true', MPP.client.getOwnParticipant().color, `msgWin_${playerid}`, undefined, true)
@@ -3751,7 +3822,6 @@ function addClick(object, playerid, p) {
 							}
 						}
 					}
-					console.log('Player Removed')
 					sendMessage('update friends')
 					sendMessage('script user', playerid)
 					j.remove()
@@ -3784,7 +3854,6 @@ function addClick(object, playerid, p) {
 				roomreq = true
 				setTimeout(function () {
 					if (roomreq === true) {
-						console.log('Timeout, closing requests')
 						if (friendRoomId.includes(playerid)) {
 							let x = friendRoomId.indexOf(playerid)
 							friendRoomId.splice(x, 1)
@@ -3915,8 +3984,6 @@ function loadToPanel() {
 			friend.setAttribute("style", `background-color: ${bgrcolor};color: white;display: block;font-size: 12px;padding-bottom: 10px;padding-left: 10px;padding-right: 10px;`)
 			document.getElementById('friendsWindow-window').appendChild(friend);
 			addClick(friend, playerid)
-		} else {
-			console.log('Player Already in Window')
 		}
 	}
 }
@@ -4036,7 +4103,6 @@ let test
 		document.getElementById('friendsWindow-window').style.left = `${j}px`
 		let i = document.getElementsByClassName('relative')[0].childNodes
 		if (i === undefined) {
-			console.log(undefined)
 			return
 		} else {
 			for (let k = 0; k < i.length; k++) {
@@ -4101,6 +4167,15 @@ let test
 	for (let i = 0; i < submit.length; i++) {
 		if (submit[i].innerText === 'USER SET') {
 			submit[i].addEventListener('click', () => {
+				let nmedv = MPP.client.getOwnParticipant().nameDiv
+				let crown = document.createElement('div')
+				crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+				crown.id = 'thatFakeCrown'
+				setTimeout(function () {
+					if (nmedv) {
+						(fakeOwner) ? (nmedv.appendChild(crown)) : (undefined)
+					}
+				}, 100)
 				sendMessage('update name')
 			})
 		}
@@ -4141,6 +4216,16 @@ let test
 			observer.disconnect()
 		}, 10000)
 	}
+	let crown = document.createElement('div'); crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'; crown.id = 'thatFakeCrown'
+	$('.text')[1].addEventListener('keydown', (evt) => {
+		(evt.keyCode == 13) ? (sendMessage('update name'),
+			setTimeout(function () {
+				if (nmedv) {
+					(fakeOwner) ? (MPP.client.getOwnParticipant().nameDiv.appendChild(crown)) : (undefined)
+				}
+			}, 100)
+		) : (undefined)
+	})
 })();
 // -- //
 
