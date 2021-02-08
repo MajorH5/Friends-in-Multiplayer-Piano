@@ -276,7 +276,7 @@ function checkFriendHTML(playerid, p) {
 				let nameColor = p.nameDiv.style.backgroundColor.toString()
 				cursornorm[0].style.backgroundColor = nameColor
 				p.nameDiv.style.color = 'red'
-				break;
+				return;
 			case 'betatester':
 				p.tempName = p.name
 				const cursornormt = p.cursorDiv.childNodes;
@@ -286,9 +286,8 @@ function checkFriendHTML(playerid, p) {
 				let nameColort = p.nameDiv.style.backgroundColor.toString()
 				cursornormt[0].style.backgroundColor = nameColort
 				p.nameDiv.style.color = 'blue'
-				break;
+				return;
 		}
-		return
 	} else {
 		p.nameDiv.thatid = playerid
 		for (let i = 0; i < friends.length; i++) {
@@ -556,7 +555,6 @@ function scriptUser(playerid, hsa, tag, sound) {
 								const cursornormf = p.cursorDiv.childNodes;
 								cursornormf[0].innerHTML = `${p.name} (Script User)`
 								p.nameDiv.innerHTML = `${p.name} (Script User)`
-								objectf.innerHTML = 'Add Friend'
 								cursornormf[0].setAttribute("style", "color: orange;")
 								let nameColor = p.nameDiv.style.backgroundColor.toString()
 								cursornormf[0].style.backgroundColor = nameColor
