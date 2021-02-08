@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Multiplayer Piano ADD-ON
 // @namespace    http://tampermonkey.net/
-// @version      1.5.2
+// @version      1.6
 // @description  Adds new features to MPP including add friends, do not show again, Direct Messaging etc.
 // @author       MajorH
 // @match        https://www.multiplayerpiano.com/*
@@ -33,9 +33,12 @@ let disablePopups
 let currentlySharing
 let gotVersionNo
 let scriptWebsite = 'https://raw.githubusercontent.com/MajorH5/Friends-in-Multiplayer-Piano/main/Friends_in_MPP.js'
-let versionNo = '1.5'
+let versionNo = '1.6'
 let authenticationStatus
 let time
+let fCrown = document.createElement('div')
+fCrown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
+fCrown.id = 'thatFakeCrown'
 let multiplayerScore = 0
 let multiplayerCrownAmmount = 0
 let multiplayerGameStatus = false
@@ -129,6 +132,7 @@ setTimeout(() => {
 					hasdata = true
 					cleared = true
 					sendMessage('get status')
+					checkPeople()
 					addListener()
 					let z = $('#manualVerify-btn')[0]
 					if (z) {
@@ -153,18 +157,6 @@ let nameDiv = [];
 // -- //
 
 // -- //
-// ATTACHES PSEUDO CROWN ONTO NAME DIV
-// function createPsuedoCrown(i) {
-// 	console.log('running')
-// 	for(let k=0;k<i.length;k++){
-// 		let pseudoCrown = document.createElement('div')
-// 		pseudoCrown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
-// 		i[k].appendChild(pseudoCrown)
-// 	}
-// }
-// -- //
-
-// -- //
 // SETS UP COOKIE ARRAY
 function updateFriendArray() {
 	cookies = document.cookie.split(';').map((cookie => {
@@ -185,6 +177,9 @@ function deleteFriendWindow(id) {
 updateFriendArray();
 // -- //
 
+function checkPeople() {
+	for (const property in MPP.client.ppl) sendMessage('script user', MPP.client.ppl[property]._id);
+}
 
 // -- //
 // HANDLES ADDING PLAYER ID TO COOKIES AND TO LOCAL ARRAY
@@ -259,31 +254,40 @@ function debug(data) {
 function checkRoomOwner(p) {
 	if (sharedPermissions.includes(p._id) && MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
 		if (!p.nameDiv.innerHTML.includes('thatFakeCrown')) {
-			let crown = document.createElement('div')
-			crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
-			crown.id = 'thatFakeCrown'
-			p.nameDiv.appendChild(crown)
+			p.nameDiv.appendChild(fCrown)
 		}
 	}
 }
 
-MPP.client.on('participant update', (p)=>{
+MPP.client.on('participant update', (p) => {
 	checkFriendHTML(p._id, p)
 })
 // -- //
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
 function checkFriendHTML(playerid, p) {
-	if (p._id === scriptCreatorId && MPP.client.getOwnParticipant()._id !== scriptCreatorId) {
-		p.tempName = p.name
-		const cursornorm = p.cursorDiv.childNodes;
-		cursornorm[0].innerHTML = `${p.name} (SCRIPT OWNER)`
-		p.nameDiv.innerHTML = `${p.name} (SCRIPT OWNER)`
-		objectf.innerHTML = 'Add Friend'
-		cursornorm[0].setAttribute("style", "color: red;")
-		let nameColor = p.nameDiv.style.backgroundColor.toString()
-		cursornorm[0].style.backgroundColor = nameColor
-		p.nameDiv.style.color = 'red'
-		checkRoomOwner(p)
+	if (p.tag && (p._id !== MPP.client.getOwnParticipant()._id)) {
+		switch (p.tag) {
+			case 'owner':
+				p.tempName = p.name
+				const cursornorm = p.cursorDiv.childNodes;
+				cursornorm[0].innerHTML = `${p.name} (SCRIPT OWNER)`
+				p.nameDiv.innerHTML = `${p.name} (SCRIPT OWNER)`
+				cursornorm[0].setAttribute("style", "color: red;")
+				let nameColor = p.nameDiv.style.backgroundColor.toString()
+				cursornorm[0].style.backgroundColor = nameColor
+				p.nameDiv.style.color = 'red'
+				break;
+			case 'betatester':
+				p.tempName = p.name
+				const cursornormt = p.cursorDiv.childNodes;
+				cursornormt[0].innerHTML = `${p.name} (BETA TESTER)`
+				p.nameDiv.innerHTML = `${p.name} (BETA TESTER)`
+				cursornormt[0].setAttribute("style", "color: blue;")
+				let nameColort = p.nameDiv.style.backgroundColor.toString()
+				cursornormt[0].style.backgroundColor = nameColort
+				p.nameDiv.style.color = 'blue'
+				break;
+		}
 		return
 	} else {
 		p.nameDiv.thatid = playerid
@@ -510,31 +514,61 @@ function createPopup(title, text, id) {
 
 // -- //
 // SETS INNER HTML BUTTON TEXT AND PLAYER TEXT COLOR
-function scriptUser(playerid) {
+function scriptUser(playerid, hsa, tag, sound) {
+	let p
 	let i = MPP.client.ppl
-	if (playerid === scriptCreatorId) { return }
 	for (const property in i) {
 		let j = Object.getOwnPropertyDescriptor(i[property], '_id')
 		if (j) {
 			if (j.value === playerid) {
-				let p = i[property]
+				p = i[property]
 				p.scriptUser = true
-				if (!friends.includes(playerid)) {
-					if (typeof p.cursorDiv === 'object') {
+				if (sound) {
+					p.soundSelection = sound
+				}
+				switch (tag) {
+					case 'owner':
 						p.tempName = p.name
 						const cursornorm = p.cursorDiv.childNodes;
-						cursornorm[0].innerHTML = `${p.name} (Script User)`
-						p.nameDiv.innerHTML = `${p.name} (Script User)`
-						objectf.innerHTML = 'Add Friend'
-						cursornorm[0].setAttribute("style", "color: orange;")
+						cursornorm[0].innerHTML = `${p.name} (SCRIPT OWNER)`
+						p.nameDiv.innerHTML = `${p.name} (SCRIPT OWNER)`
+						cursornorm[0].setAttribute("style", "color: red;")
 						let nameColor = p.nameDiv.style.backgroundColor.toString()
 						cursornorm[0].style.backgroundColor = nameColor
-						p.nameDiv.style.color = 'orange'
-					}
+						p.nameDiv.style.color = 'red'
+						p.tag = 'owner'
+						return;
+					case 'betatester':
+						p.tempName = p.name
+						const cursornormt = p.cursorDiv.childNodes;
+						cursornormt[0].innerHTML = `${p.name} (BETA TESTER)`
+						p.nameDiv.innerHTML = `${p.name} (BETA TESTER)`
+						cursornormt[0].setAttribute("style", "color: blue;")
+						let nameColort = p.nameDiv.style.backgroundColor.toString()
+						cursornormt[0].style.backgroundColor = nameColort
+						p.nameDiv.style.color = 'blue'
+						p.tag = 'betatester'
+						return;
+					default:
+						if (!friends.includes(playerid)) {
+							if (typeof p.cursorDiv === 'object') {
+								p.tempName = p.name
+								const cursornormf = p.cursorDiv.childNodes;
+								cursornormf[0].innerHTML = `${p.name} (Script User)`
+								p.nameDiv.innerHTML = `${p.name} (Script User)`
+								objectf.innerHTML = 'Add Friend'
+								cursornormf[0].setAttribute("style", "color: orange;")
+								let nameColor = p.nameDiv.style.backgroundColor.toString()
+								cursornormf[0].style.backgroundColor = nameColor
+								p.nameDiv.style.color = 'orange'
+							}
+						}
+						return;
 				}
 			}
 		}
 	}
+	// (hsa) ? (p.appendChild(fCrown)) : (undefined);
 }
 // -- //
 
@@ -545,10 +579,7 @@ MPP.client.on('participant added', (p) => {
 	if (MPP.client.channel.crown) {
 		if (sharedPermissions.includes(p._id) && MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
 			if (!p.nameDiv.innerHTML.includes('thatFakeCrown')) {
-				let crown = document.createElement('div')
-				crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
-				crown.id = 'thatFakeCrown'
-				p.nameDiv.appendChild(crown)
+				p.nameDiv.appendChild(fCrown)
 			}
 		}
 	}
@@ -562,6 +593,13 @@ MPP.client.on('participant added', (p) => {
 			kickban.style.backgroundColor = p.nameDiv.backgroundColor
 			kickban.className = 'menu-item'
 			kickban.innerText = 'Kickban'
+			let sound
+			if (p.soundSelection) {
+				sound = document.createElement('div')
+				sound.style.backgroundColor = p.nameDiv.backgroundColor
+				sound.className = 'menu-item'
+				sound.innerText = `Using: ${p.soundSelection}`
+			}
 			PT = p
 			selectedFriend = p._id;
 			setTimeout(() => {
@@ -579,6 +617,9 @@ MPP.client.on('participant added', (p) => {
 						})
 					}
 					document.getElementsByClassName('participant-menu')[0].appendChild(objectf);
+					if (sound) {
+						document.getElementsByClassName('participant-menu')[0].appendChild(sound);
+					}
 				} else if (e.target.parentNode.id == 'thatFakeCrown') {
 					if (sharedPermissions.includes(p._id) && MPP.client.channel.crown.userId == MPP.client.getOwnParticipant()._id) {
 						let i = sharedPermissions.indexOf(p._id)
@@ -623,9 +664,8 @@ MPP.client.on('ch', function () {
 		}
 	}
 	if (fakeOwner) {
-		let crown = document.createElement('div'); crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'; crown.id = 'thatFakeCrown'
 		let nameThing = MPP.client.getOwnParticipant().nameDiv
-		nameThing.appendChild(crown)
+		nameThing.appendChild(fCrown)
 	}
 })
 // -- //
@@ -1210,7 +1250,7 @@ function buttonClicked(object, num) {
 			let u = document.createElement('div')
 			u.id = 'versionNumber'
 			u.style = 'font-size: 16px;color: grey;padding-bottom: 11px;'
-			u.innerText = '>Script By MajorH. v1.5.2'
+			u.innerText = '>Script By MajorH. v1.6'
 			s.innerText = 'Settings'
 			let a = document.createElement('div')
 			a.id = 'allowFriendJoin-btn'
@@ -1480,12 +1520,12 @@ function buttonClicked(object, num) {
 			s.appendChild(disablePopup)
 			disablePopup.addEventListener('click', function () {
 				if (disablePopups) {
-					document.cookie = '%disablePopups=false'
+					document.cookie = `%disablePopups=false; expires=${keepCookie}`
 					disablePopups = false
 					disablePopup.innerText = 'Disabled'
 					disablePopup.style = 'color: red;'
 				} else {
-					document.cookie = '%disablePopups=true'
+					document.cookie = `%disablePopups=true; expires=${keepCookie}`
 					disablePopups = true
 					disablePopup.innerText = 'Enabled'
 					disablePopup.style = 'color: lime;'
@@ -2315,6 +2355,21 @@ function sendMessage(param, msg, playerid, msgid) {
 				})
 			}
 			break;
+		case 'update sound':
+			payload = {
+				sound: msg
+			}
+			x = stringUp('updatesound', payload)
+			if (ws.readyState === WebSocket.OPEN) {
+				ws.send(x);
+				debug(x)
+			} else {
+				ws.addEventListener('open', function (e) {
+					ws.send(x);
+					debug(x)
+				})
+			}
+			break;
 		case 'script user':
 			payload = {
 				scriptuser: msg
@@ -2450,9 +2505,8 @@ function sendMessage(param, msg, playerid, msgid) {
 			break;
 		case 'get status':
 			payload = {
-				friends: {
-
-				}
+				friends: {},
+				sound: MPP.soundSelector.soundSelection
 			}
 			for (let i = 0; i < friends.length; i++) {
 				payload.friends[friends[i]] = $(`#${friends[i]}`)[0].childNodes[0].nodeValue
@@ -2793,7 +2847,7 @@ function addListener() {
 							}
 							break;
 						case 'scriptuser':
-							scriptUser(a.data.scriptuser)
+							scriptUser(a.data.scriptuser, a.data.hasSharedPermissions, a.data.tag, a.data.sound)
 							break;
 						case 'finaljoinroom':
 							if (roomreq === true) {
@@ -2853,6 +2907,17 @@ function addListener() {
 							break;
 						case 'message':
 							createMessageOnScreen(a.data.tid, a.data.msg, 'true', a.data.color, a.data.name, undefined, true)
+							break;
+						case 'updatesound':
+							let ife = MPP.client.ppl
+							for (const property in ife) {
+								let j = Object.getOwnPropertyDescriptor(ife[property], '_id')
+								if (j) {
+									if (j.value === a.data.id) {
+										ife[property].soundSelection = a.data.sound
+									}
+								}
+							}
 							break;
 						case 'version':
 							if (a.data.status == 'outdated') {
@@ -4168,12 +4233,9 @@ let test
 		if (submit[i].innerText === 'USER SET') {
 			submit[i].addEventListener('click', () => {
 				let nmedv = MPP.client.getOwnParticipant().nameDiv
-				let crown = document.createElement('div')
-				crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'
-				crown.id = 'thatFakeCrown'
 				setTimeout(function () {
 					if (nmedv) {
-						(fakeOwner) ? (nmedv.appendChild(crown)) : (undefined)
+						(fakeOwner) ? (nmedv.appendChild(fCrown)) : (undefined)
 					}
 				}, 100)
 				sendMessage('update name')
@@ -4216,15 +4278,28 @@ let test
 			observer.disconnect()
 		}, 10000)
 	}
-	let crown = document.createElement('div'); crown.innerHTML = '<img src="https://i.imgur.com/Z6GELiE.png" style="position: absolute;top: -8px;left: 4px;">'; crown.id = 'thatFakeCrown'
 	$('.text')[1].addEventListener('keydown', (evt) => {
 		(evt.keyCode == 13) ? (sendMessage('update name'),
 			setTimeout(function () {
 				if (nmedv) {
-					(fakeOwner) ? (MPP.client.getOwnParticipant().nameDiv.appendChild(crown)) : (undefined)
+					(fakeOwner) ? (MPP.client.getOwnParticipant().nameDiv.appendChild(fCrown)) : (undefined)
 				}
 			}, 100)
 		) : (undefined)
+	})
+	const jex = document.getElementById('sound-btn')
+	jex.addEventListener('click', function () {
+		setTimeout(function () {
+			let x = document.getElementById('Notification-Sound-Selector')
+			if (x) {
+				for (let i = 0; i < x.childNodes.length; i++) {
+					x.childNodes[i].addEventListener('click', function () {
+						console.log('updating public sound')
+						sendMessage('update sound', MPP.soundSelector.soundSelection)
+					})
+				}
+			}
+		}, 1000)
 	})
 })();
 // -- //
