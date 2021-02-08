@@ -268,7 +268,8 @@ function checkFriendHTML(playerid, p) {
 	if (p.tag && (p._id !== MPP.client.getOwnParticipant()._id)) {
 		switch (p.tag) {
 			case 'owner':
-				p.tempName = p.name
+				p.tempName = p.name;
+				(friends.includes(p._id))?(objectf.innerHTML = 'Remove Friend'):(objectf.innerHTML = 'Add Friend');
 				const cursornorm = p.cursorDiv.childNodes;
 				cursornorm[0].innerHTML = `${p.name} (SCRIPT OWNER)`
 				p.nameDiv.innerHTML = `${p.name} (SCRIPT OWNER)`
@@ -279,6 +280,7 @@ function checkFriendHTML(playerid, p) {
 				return;
 			case 'betatester':
 				p.tempName = p.name
+				(friends.includes(p._id))?(objectf.innerHTML = 'Remove Friend'):(objectf.innerHTML = 'Add Friend');
 				const cursornormt = p.cursorDiv.childNodes;
 				cursornormt[0].innerHTML = `${p.name} (BETA TESTER)`
 				p.nameDiv.innerHTML = `${p.name} (BETA TESTER)`
@@ -561,7 +563,7 @@ function scriptUser(playerid, hsa, tag, sound) {
 								p.nameDiv.style.color = 'orange'
 							}
 						}
-						return;
+					return;
 				}
 			}
 		}
@@ -747,7 +749,7 @@ objectf.addEventListener('click', () => {
 		if (PT.scriptUser === true && selectedFriend !== scriptCreatorId) {
 			let p = PT
 			if (typeof p.cursorDiv === 'object') {
-				if (!friends.includes(selectedFriend)) {
+				if (!friends.includes(selectedFriend) && !(p.tag)) {
 					const cursornorm = p.cursorDiv.childNodes;
 					cursornorm[0].innerHTML = `${p.name} (Script User)`
 					p.nameDiv.innerHTML = `${p.name} (Script User)`
@@ -3850,7 +3852,7 @@ function addClick(object, playerid, p) {
 						if (j) {
 							if (j.value === playerid) {
 								let p = i[property]
-								if (p.scriptUser === true) {
+								if (p.scriptUser === true && !(p.tag)) {
 									if (typeof p.cursorDiv === 'object') {
 										const cursornorm = p.cursorDiv.childNodes;
 										cursornorm[0].innerHTML = `${p.name} (Script User)`
