@@ -1,6 +1,7 @@
 
 # Multiplayer Piano Script
 ###### Server is being hosted @ https://mppchatclient.info/
+(404 error is expexted behavior.)
 
 
 Hello! This is a script I've been working on about a week. It allows friends in MPP by storing data in browser cookies and indexDB. It also allows for direct communcation between two users via a websocket.
